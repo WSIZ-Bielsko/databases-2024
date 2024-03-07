@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "db-2024"
+version = "0.1.0"
+description = ""
+authors = ["Piotr Marecki <pmarecki.pro@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aiohttp = "^3.9.3"
+loguru = "^0.7.2"
+asyncpg = "^0.29.0"
+python-dotenv = "^1.0.1"
+pydantic = "^2.6.3"
+argon2-cffi = "^23.1.0"
+ecdsa = "^0.18.0"
+aiohttp-cors = "^0.7.0"
+requests = "^2.31.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.4"
+pytest-aiohttp = "^1.0.4"
+pytest-asyncio = "^0.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
