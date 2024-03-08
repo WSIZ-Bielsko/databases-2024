@@ -20,7 +20,7 @@ class Teacher(BaseModel):
 
 
 class Group(BaseModel):
-    grupaid: int
+    grupaid: int  # to jest "ID", odpowiada temu kolumna primary key
     nazwa: str
     opis: str
     active: bool
