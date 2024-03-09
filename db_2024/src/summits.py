@@ -45,6 +45,12 @@ async def create_summit(pool: Pool, summit: Summit) -> Summit:
         return Summit(**res)
 
 
+async def delete_summit(pool: Pool, summit_id: int) -> Summit:
+    async with pool.acquire() as conn:
+        res = await conn.fetchrow('DELETE FROM summits WHERE id=$1 RETURNING *', summit_id)
+        return Summit(**res)
+
+
 async def main():
 
     DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
@@ -52,10 +58,13 @@ async def main():
     pool = await connect_db(DATABASE_URL)
     print('db connected')
 
-    lonelyMountain = Summit(id=None, name='Lonely Mountain 3', altitude=441.55, position_long=45.1234, position_lat=67.9854)
+    lonelyMountain = Summit(id=None, name='Lonely Mountain 4', altitude=441.55, position_long=45.1234, position_lat=67.9854)
 
     x = await create_summit(pool, lonelyMountain)
     print(f'result of writing to db: {x=}')
+
+    x_deleted = await delete_summit(pool, x.id)
+    print(f'deleted: {x_deleted}')
 
     summits = await get_summits(pool)
     print(summits)
