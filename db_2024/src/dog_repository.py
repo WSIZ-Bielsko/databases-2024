@@ -1,8 +1,8 @@
 from asyncio import run
 from datetime import date
-from multiprocessing import Pool
 
 import asyncpg
+from asyncpg import Pool
 from pydantic import BaseModel
 
 
@@ -40,8 +40,8 @@ the database will generate the id value; the create_dog method should return ful
 
 
 class DogsCRUD:
-    def __init__(self, pool):
-        self.pool = pool
+    def __init__(self, pool: Pool):
+        self.pool: Pool = pool
 
     async def create_dog(self, dog: Dog) -> Dog:
         async with self.pool.acquire() as conn:
