@@ -45,7 +45,7 @@ async def create_summit(pool: Pool, summit: Summit) -> Summit:
         return Summit(**res)
 
 
-async def update_summit(pool: Pool, summit):
+async def update_summit(pool: Pool, summit: Summit):
     async with pool.acquire() as conn:
         await conn.execute('''
             UPDATE summits
