@@ -79,6 +79,24 @@ async def main():
     created_dog = await repo.create_dog(d)
     print('dog zapisany; dostalismy:', created_dog)
 
+    found_dog = await repo.get_dog(dog_id=d.id)
+    print(type(found_dog))  # <class 'asyncpg.Record'>
+    print(found_dog)
+    found_dog_ = Dog(**found_dog)
+    print(found_dog_)  # type = Dog
+    print(found_dog_ == d)
+
+    found_dog_.lineage = 'Extinct'
+    await repo.update_dog(d.id, found_dog_)
+
+    zz = Dog(**(await repo.get_dog(d.id)))
+    print(zz)
+
+    await repo.delete_dog(d.id)
+
+    deleted_dog = await repo.get_dog(d.id)
+    print(deleted_dog)  # None
+
 
 
 if __name__ == '__main__':

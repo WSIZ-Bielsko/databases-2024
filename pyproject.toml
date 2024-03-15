@@ -21,6 +21,7 @@ requests = "^2.31.0"
 pytest = "^7.2.4"
 pytest-aiohttp = "^1.0.4"
 pytest-asyncio = "^0.19.0"
+requests = "^2.31.0"
 
 [build-system]
 requires = ["poetry-core"]
