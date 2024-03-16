@@ -54,7 +54,7 @@ class DogsCRUD:
         async with self.pool.acquire() as conn:
             query = "SELECT * FROM dogs WHERE id = $1"
             dog = await conn.fetchrow(query, dog_id)
-            return dog
+            return Dog(**dog)
 
     async def update_dog(self, dog_id: int, dog: Dog):
         async with self.pool.acquire() as conn:
