@@ -34,6 +34,7 @@ class Dog(BaseModel):
     lineage: str
     birthdate: date
     name: str
+    dominant_color: str
 
     
 All the method corresponding to Read operation should return instance of Dog or None.
@@ -69,11 +70,19 @@ class DogsCRUD:
 
     # --- extra methods
 
-    # Write a method (using self.pool) to remove all instances from the db where lineage is "Extinct"
+    # AI: Write a method (using self.pool) to remove all instances from the db where lineage is "Extinct"
     async def remove_extinct_dogs(self):
         async with self.pool.acquire() as connection:
             async with connection.transaction():
-                await connection.execute("DELETE FROM table_name WHERE lineage = 'Extinct'")
+                await connection.execute("DELETE FROM dogs WHERE lineage = 'Extinct'")
+
+    # AI: Write a method (using self.pool) returning all instances of Dog from the db where lineage has a value given in the argument of the method
+
+    async def get_dogs_by_lineage(self, lineage: str) -> list[Dog]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT id, breed_id, lineage, birthdate, name FROM dogs WHERE lineage = $1"
+            records = await connection.fetch(query, lineage)
+            return [Dog(**record) for record in records]
 
 
 async def main():
