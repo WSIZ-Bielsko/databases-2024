@@ -24,3 +24,25 @@ class Dog(BaseModel):
     @field_serializer('birthdate')
     def serialize_birthdate(self, birthdate: date, _info):
         return str(birthdate)
+
+
+
+class Person(BaseModel):
+    id: UUID | None
+    pesel: str
+    name: str
+    phone: str
+
+
+"""
+Generate postgres 15 table for the following pydantic dataclass
+
+class Person(BaseModel):
+    id: UUID | None
+    pesel: str
+    name: str
+    phone: str
+
+The id field should be random-generated per default, str should be represented as text;
+
+"""
