@@ -1,5 +1,6 @@
 import uuid
 from asyncio import run
+from datetime import datetime, timedelta
 
 import asyncpg
 from loguru import logger
@@ -84,6 +85,21 @@ class DogsCRUD:
             records = await connection.fetch(query, lineage)
             return [Dog(**record) for record in records]
 
+    async def get_dogs_older_than(self, age_mths: int, limit: int, offset: int) -> list[Dog]:
+        bdate = datetime.now() - timedelta(days=30 * age_mths)
+        async with self.pool.acquire() as connection:
+            query = "SELECT * from dogs where birthdate > $1 order by birthdate asc, id limit $2 offset $3"
+            records = await connection.fetch(query, bdate, limit, offset)
+            return [Dog(**record) for record in records]
+
+    async def get_dogs_name_containing(self, substring_of_name: str, limit: int, offset: int) -> list[Dog]:
+        async with self.pool.acquire() as connection:
+            pattern = f'%{substring_of_name}%'
+            query = "select * from dogs where name ilike $1 order by name limit $2 offset $3"
+            records = await connection.fetch(query, pattern, limit, offset)
+            return [Dog(**record) for record in records]
+
+
 
 async def main():
     DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
@@ -92,22 +108,27 @@ async def main():
     print('db connected')
     repo = DogsCRUD(pool=pool)
 
-    d = Dog(id=uuid.uuid4(), breed_id=uuid.uuid4(), lineage='LinKat', birthdate=date(2020, 1, 15), name='Szarik')
-    logger.info(d)
-    d = await repo.create_dog(d)
-    logger.info('dog zapisany')
+    # dd = await repo.get_dogs_older_than(age_mths=10, limit=10, offset=0)
+    dd = await repo.get_dogs_name_containing(substring_of_name='ya', limit=10, offset=0)
+    for d in dd:
+        print(d.birthdate, d.name, d.lineage, d.id)
 
-    found_dog = await repo.read_dog(dog_id=d.id)
-    # print(type(found_dog))  # <class 'asyncpg.Record'>
-    logger.info(found_dog)
-    logger.info(type(found_dog))  # type = Dog
-    logger.info(found_dog == d)
-
-    found_dog.lineage = 'Extinct'
-    await repo.update_dog(d.id, found_dog)
-
-    zz = await repo.read_dog(d.id)
-    logger.info(zz)
+    # d = Dog(id=uuid.uuid4(), breed_id=uuid.uuid4(), lineage='LinKat', birthdate=date(2020, 1, 15), name='Szarik')
+    # logger.info(d)
+    # d = await repo.create_dog(d)
+    # logger.info('dog zapisany')
+    #
+    # found_dog = await repo.read_dog(dog_id=d.id)
+    # # print(type(found_dog))  # <class 'asyncpg.Record'>
+    # logger.info(found_dog)
+    # logger.info(type(found_dog))  # type = Dog
+    # logger.info(found_dog == d)
+    #
+    # found_dog.lineage = 'Extinct'
+    # await repo.update_dog(d.id, found_dog)
+    #
+    # zz = await repo.read_dog(d.id)
+    # logger.info(zz)
 
     # await repo.delete_dog(d.id)
     #

@@ -96,7 +96,7 @@ def get_random_birthdates(max_age_days: int, n_dates: int = 1):
 
 
 async def main():
-    N = 10000
+    N = 10
     names = get_random_dog_names(locale='north korea', n_names=N)
     lineages = get_random_lineages(n_lineages=N)
     bdates = get_random_birthdates(max_age_days=7 * 360, n_dates=N)
