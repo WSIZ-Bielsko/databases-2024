@@ -1,7 +1,12 @@
+from asyncio import run
 from datetime import datetime, timedelta
 from random import choice, choices, randint
 from uuid import uuid4
 
+from loguru import logger
+
+from common import connect_db
+from dog_repository import DogsCRUD
 from model import Dog
 
 
@@ -90,17 +95,30 @@ def get_random_birthdates(max_age_days: int, n_dates: int = 1):
     return dates
 
 
-if __name__ == '__main__':
-    print(get_random_dog_names(locale='north korea', n_names=10))
-    print(get_random_lineages(n_lineages=10))
-    print(get_random_birthdates(max_age_days=5 * 360, n_dates=10))
-
-    N = 100
+async def main():
+    N = 10000
     names = get_random_dog_names(locale='north korea', n_names=N)
     lineages = get_random_lineages(n_lineages=N)
     bdates = get_random_birthdates(max_age_days=7 * 360, n_dates=N)
 
-    random_dogs = [Dog(id=uuid4(), breed_id=uuid4(), lineage=lineage, birthdate= bdate, name=name)
-                   for (lineage, bdate,name) in zip(lineages, bdates, names)]
+    random_dogs = [Dog(id=uuid4(), breed_id=uuid4(), lineage=lineage, birthdate=bdate, name=name)
+                   for (lineage, bdate, name) in zip(lineages, bdates, names)]
     print(random_dogs)
 
+    # inicjalizacja polaczenia z baza
+    DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
+    # protocol :// user : password @ host : port / name_of_db
+    pool = await connect_db(DATABASE_URL)
+    print('db connected')
+    repo = DogsCRUD(pool=pool)
+
+    # zapis losowych psow
+    for dog in random_dogs:
+        logger.info(f'Creating dog with name: {dog.name}')
+        await repo.create_dog(dog)
+
+
+
+
+if __name__ == '__main__':
+    run(main())
