@@ -1,8 +1,10 @@
 import uuid
 from asyncio import run
 from datetime import datetime, timedelta
+from random import randint
 
 import asyncpg
+from faker import Faker
 from loguru import logger
 
 from common import connect_db
@@ -40,13 +42,15 @@ class PersonCRUD:
         row = await self.pool.fetchrow(query, person.pesel, person.name, person.phone)
         return Person(id=row['id'], pesel=row['pesel'], name=row['name'], phone=row['phone'])
 
-    async def read(self, person_id: UUID) -> Person:
+    async def read(self, person_id: UUID) -> Person | None:
         query = """
         SELECT id, pesel, name, phone
         FROM persons
         WHERE id = $1
         """
         row = await self.pool.fetchrow(query, person_id)
+        if row is None: return None
+
         return Person(id=row['id'], pesel=row['pesel'], name=row['name'], phone=row['phone'])
 
     async def read_all(self) -> list[Person]:
@@ -77,17 +81,36 @@ class PersonCRUD:
     # --- extra methods
 
 
+def random_person():
+    faker = Faker()
+    return Person(
+        id=uuid.uuid4(),
+        pesel=faker.ssn(),
+        name=faker.name(),
+        phone=faker.phone_number()
+    )
+
+
 async def main():
     DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
     print('db connected')
     repo = PersonCRUD(pool=pool)
+    logger.info('connection works')
+    p = random_person()
+    p_created = await repo.create(person=p)
+    p.id = p_created.id
+    print(p)
+    print(p_created)
+    assert p == p_created
 
-    # dd = await repo.get_dogs_older_than(age_mths=10, limit=10, offset=0)
-    # dd = await repo.get_dogs_name_containing(substring_of_name='ya', limit=10, offset=0)
-    # for d in dd:
-    #     print(d.birthdate, d.name, d.lineage, d.id)
+    p2 = await repo.read(person_id=p.id)
+    assert p == p2
+
+    await repo.delete(person_id=p.id)
+    p_none = await repo.read(person_id=p.id)
+    assert p_none is None
 
 
 if __name__ == '__main__':
