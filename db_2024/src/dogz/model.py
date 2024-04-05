@@ -26,7 +26,6 @@ class Dog(BaseModel):
         return str(birthdate)
 
 
-
 class Person(BaseModel):
     id: UUID | None
     pesel: str
