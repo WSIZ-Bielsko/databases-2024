@@ -66,7 +66,6 @@ class DogsCRUD:
             record = await connection.fetch(query)
             return [Dog(**r) for r in record]
 
-
     async def update_dog(self, dog_id: uuid.UUID, dog: Dog) -> None:
         async with self.pool.acquire() as connection:
             query = "UPDATE dogs SET breed_id = $1, lineage = $2, birthdate = $3, name = $4 WHERE id = $5"
@@ -121,7 +120,13 @@ class DogsCRUD:
             except asyncpg.exceptions.UniqueViolationError:
                 logger.warning(f'Dog {dog_id=} already assigned to person {person_id=}')
 
-
+    async def get_dogs_assigned_to_person(self, person_id: UUID) -> list[Dog]:
+        async with self.pool.acquire() as connection:
+            # todo: avoid listing all columns
+            query = """select dogs.id, dogs.breed_id, dogs.lineage, dogs.birthdate, dogs.name from dogs, person_dogs where 
+                       person_dogs.person_id = $1 and person_dogs.dog_id = dogs.id;"""
+            records = await connection.fetch(query, person_id)
+            return [Dog(**record) for record in records]
 
 
 async def main():
@@ -158,14 +163,14 @@ async def main():
     # deleted_dog = await repo.read_dog(d.id)
     # logger.warning(deleted_dog)  # None
 
-    await repo.assign_person_to_dog(person_id=UUID('48d500e9-9076-4798-95e2-7efbabaad92f'),
-                                    dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
+    await repo.assign_person_to_dog(person_id=UUID('00000000-9076-4798-95e2-aaababaad92f'),
+                                    dog_id=UUID('0667c52b-fb32-487c-aebf-aaad435334b9'))
 
-    owners = await repo.get_persons_assigned_to_dog(dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
-    for p in owners:
-        print(p)
+    # owners = await repo.get_persons_assigned_to_dog(dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
 
-
+    # my_dogs = await repo.get_dogs_assigned_to_person(person_id=UUID('e75b3ff3-9106-4bca-8b1c-9a7ec716a943'))
+    # for d in my_dogs:
+    #     print(d)
 
 
 if __name__ == '__main__':
