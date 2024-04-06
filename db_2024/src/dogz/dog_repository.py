@@ -1,6 +1,7 @@
 import uuid
 from asyncio import run
 from datetime import datetime, timedelta
+from random import choice
 
 import asyncpg
 from loguru import logger
@@ -59,6 +60,13 @@ class DogsCRUD:
             record = await connection.fetchrow(query, dog_id)
             return Dog(**record) if record else None
 
+    async def read_all(self) -> list[Dog]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM dogs"
+            record = await connection.fetch(query)
+            return [Dog(**r) for r in record]
+
+
     async def update_dog(self, dog_id: uuid.UUID, dog: Dog) -> None:
         async with self.pool.acquire() as connection:
             query = "UPDATE dogs SET breed_id = $1, lineage = $2, birthdate = $3, name = $4 WHERE id = $5"
@@ -99,6 +107,21 @@ class DogsCRUD:
             records = await connection.fetch(query, pattern, limit, offset)
             return [Dog(**record) for record in records]
 
+    async def get_persons_assigned_to_dog(self, dog_id: UUID) -> list[Person]:
+        async with self.pool.acquire() as connection:
+            query = "select p.id, pesel, name, phone from persons p, person_dogs pd where p.id = pd.person_id and pd.dog_id = $1;"
+            records = await connection.fetch(query, dog_id)
+            return [Person(**record) for record in records]
+
+    async def assign_person_to_dog(self, person_id: UUID, dog_id: UUID):
+        async with self.pool.acquire() as connection:
+            try:
+                query = "insert into person_dogs(dog_id, person_id) values ($1,$2)"
+                records = await connection.execute(query, dog_id, person_id)
+            except asyncpg.exceptions.UniqueViolationError:
+                logger.warning(f'Dog {dog_id=} already assigned to person {person_id=}')
+
+
 
 
 async def main():
@@ -109,9 +132,9 @@ async def main():
     repo = DogsCRUD(pool=pool)
 
     # dd = await repo.get_dogs_older_than(age_mths=10, limit=10, offset=0)
-    dd = await repo.get_dogs_name_containing(substring_of_name='ya', limit=10, offset=0)
-    for d in dd:
-        print(d.birthdate, d.name, d.lineage, d.id)
+    # dd = await repo.get_dogs_name_containing(substring_of_name='ya', limit=10, offset=0)
+    # for d in dd:
+    #     print(d.birthdate, d.name, d.lineage, d.id)
 
     # d = Dog(id=uuid.uuid4(), breed_id=uuid.uuid4(), lineage='LinKat', birthdate=date(2020, 1, 15), name='Szarik')
     # logger.info(d)
@@ -134,6 +157,15 @@ async def main():
     #
     # deleted_dog = await repo.read_dog(d.id)
     # logger.warning(deleted_dog)  # None
+
+    await repo.assign_person_to_dog(person_id=UUID('48d500e9-9076-4798-95e2-7efbabaad92f'),
+                                    dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
+
+    owners = await repo.get_persons_assigned_to_dog(dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
+    for p in owners:
+        print(p)
+
+
 
 
 if __name__ == '__main__':

@@ -30,7 +30,7 @@ The method corresponding to Create operation should return instance of created d
 
 
 class PersonCRUD:
-    def __init__(self, pool: asyncpg.Connection):
+    def __init__(self, pool: asyncpg.pool.Pool):
         self.pool = pool
 
     async def create(self, person: Person) -> Person:
