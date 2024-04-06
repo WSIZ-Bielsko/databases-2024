@@ -29,7 +29,7 @@ async def main():
     print('db connected')
     repoDogs = DogsCRUD(pool=pool)
     repoPers = PersonCRUD(pool=pool)
-    await assign_owners_randomly(repoDogs, repoPers, n_assignments=100)
+    await assign_owners_randomly(repoDogs, repoPers, n_assignments=10000)
 
 
 if __name__ == '__main__':
