@@ -108,7 +108,7 @@ class DogsCRUD:
 
     async def get_persons_assigned_to_dog(self, dog_id: UUID) -> list[Person]:
         async with self.pool.acquire() as connection:
-            query = "select p.id, pesel, name, phone from persons p, person_dogs pd where p.id = pd.person_id and pd.dog_id = $1;"
+            query = "select p.* from persons p, person_dogs p2d where p.id = p2d.person_id and p2d.dog_id = $1;"
             records = await connection.fetch(query, dog_id)
             return [Person(**record) for record in records]
 
@@ -117,14 +117,23 @@ class DogsCRUD:
             try:
                 query = "insert into person_dogs(dog_id, person_id) values ($1,$2)"
                 records = await connection.execute(query, dog_id, person_id)
+                logger.info(f'dog id={dog_id} to person id={person_id}: assigned')
             except asyncpg.exceptions.UniqueViolationError:
-                logger.warning(f'Dog {dog_id=} already assigned to person {person_id=}')
+                logger.warning(f'dog id={dog_id} to person id={person_id}: already assigned')
+
+    async def unassign_person_to_dog(self, person_id: UUID, dog_id: UUID):
+        async with self.pool.acquire() as connection:
+            try:
+                query = "delete from person_dogs where person_id=$1 and dog_id=$2"
+                records = await connection.execute(query, person_id, dog_id)
+                logger.info(f'dog id={dog_id} to person id={person_id}: unassigned')
+            except asyncpg.exceptions.UniqueViolationError:
+                logger.warning(f'dog id={dog_id} to person id={person_id}: unassign error')
 
     async def get_dogs_assigned_to_person(self, person_id: UUID) -> list[Dog]:
         async with self.pool.acquire() as connection:
-            # todo: avoid listing all columns
-            query = """select dogs.id, dogs.breed_id, dogs.lineage, dogs.birthdate, dogs.name from dogs, person_dogs where 
-                       person_dogs.person_id = $1 and person_dogs.dog_id = dogs.id;"""
+            query = """select d.* from dogs d, person_dogs p2d where 
+                       p2d.person_id = $1 and p2d.dog_id = d.id;"""
             records = await connection.fetch(query, person_id)
             return [Dog(**record) for record in records]
 
@@ -163,14 +172,14 @@ async def main():
     # deleted_dog = await repo.read_dog(d.id)
     # logger.warning(deleted_dog)  # None
 
-    await repo.assign_person_to_dog(person_id=UUID('00000000-9076-4798-95e2-aaababaad92f'),
-                                    dog_id=UUID('0667c52b-fb32-487c-aebf-aaad435334b9'))
+    await repo.assign_person_to_dog(person_id=UUID('52c667f5-647f-457b-90d6-07f5979070dd'),
+                                    dog_id=UUID('5293bb18-a615-4feb-b3dd-b5b21660f29b'))
 
     # owners = await repo.get_persons_assigned_to_dog(dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
 
-    # my_dogs = await repo.get_dogs_assigned_to_person(person_id=UUID('e75b3ff3-9106-4bca-8b1c-9a7ec716a943'))
-    # for d in my_dogs:
-    #     print(d)
+    my_dogs = await repo.get_dogs_assigned_to_person(person_id=UUID('52c667f5-647f-457b-90d6-07f5979070dd'))
+    for d in my_dogs:
+        print(d)
 
 
 if __name__ == '__main__':
