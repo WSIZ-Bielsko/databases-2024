@@ -106,11 +106,22 @@ class DogsCRUD:
             records = await connection.fetch(query, pattern, limit, offset)
             return [Dog(**record) for record in records]
 
+    # two sql-queries which actually perform a query on two tables (traditionally known as join-queries)
+
     async def get_persons_assigned_to_dog(self, dog_id: UUID) -> list[Person]:
         async with self.pool.acquire() as connection:
             query = "select p.* from persons p, person_dogs p2d where p.id = p2d.person_id and p2d.dog_id = $1;"
             records = await connection.fetch(query, dog_id)
             return [Person(**record) for record in records]
+
+    async def get_dogs_assigned_to_person(self, person_id: UUID) -> list[Dog]:
+        async with self.pool.acquire() as connection:
+            query = """select d.* from dogs d, person_dogs p2d where 
+                          p2d.person_id = $1 and p2d.dog_id = d.id;"""
+            records = await connection.fetch(query, person_id)
+            return [Dog(**record) for record in records]
+
+    # actions of creating and removing an assignment between dogs and persons
 
     async def assign_person_to_dog(self, person_id: UUID, dog_id: UUID):
         async with self.pool.acquire() as connection:
@@ -129,13 +140,6 @@ class DogsCRUD:
                 logger.info(f'dog id={dog_id} to person id={person_id}: unassigned')
             except asyncpg.exceptions.UniqueViolationError:
                 logger.warning(f'dog id={dog_id} to person id={person_id}: unassign error')
-
-    async def get_dogs_assigned_to_person(self, person_id: UUID) -> list[Dog]:
-        async with self.pool.acquire() as connection:
-            query = """select d.* from dogs d, person_dogs p2d where 
-                       p2d.person_id = $1 and p2d.dog_id = d.id;"""
-            records = await connection.fetch(query, person_id)
-            return [Dog(**record) for record in records]
 
 
 async def main():
