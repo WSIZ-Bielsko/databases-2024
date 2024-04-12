@@ -31,6 +31,14 @@ class Person(BaseModel):
     pesel: str
     name: str
     phone: str
+    password_hash: str
+
+
+class Surgery(BaseModel):
+    surgery_id: UUID | None
+    dog_id: UUID
+    description: str
+
 
 
 """
