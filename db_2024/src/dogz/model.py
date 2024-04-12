@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, field_serializer
@@ -35,9 +35,15 @@ class Person(BaseModel):
 
 
 class Surgery(BaseModel):
-    surgery_id: UUID | None
+    id: UUID | None
     dog_id: UUID
+    date_performed: datetime
     description: str
+
+
+class AccessLevel(BaseModel):
+    level: str
+    # [client, doctor, admin]
 
 
 
