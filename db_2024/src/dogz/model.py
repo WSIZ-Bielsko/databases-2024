@@ -27,7 +27,7 @@ class Dog(BaseModel):
 
 
 class Person(BaseModel):
-    id: UUID | None
+    id: UUID
     pesel: str
     name: str
     phone: str
@@ -35,7 +35,7 @@ class Person(BaseModel):
 
 
 class Surgery(BaseModel):
-    id: UUID | None
+    id: UUID
     dog_id: UUID
     date_performed: datetime
     description: str
