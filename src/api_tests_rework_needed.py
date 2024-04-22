@@ -1,6 +1,6 @@
 import requests
 
-from db_2024.src.model import PlanItem
+from src.model import PlanItem
 
 HOST = 'http://localhost:5000'
 

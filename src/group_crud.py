@@ -1,7 +1,7 @@
 import os
 from asyncio import run
 
-from db_2024.src.db_service import DbService
+from src.db_service import DbService
 from model import Group
 
 DEFAULT_DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'

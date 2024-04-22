@@ -19,11 +19,10 @@ in each method get the connection via `async with self.pool.acquire() as conn:`.
 """
 from asyncio import run
 
-import asyncpg
 from pydantic import BaseModel
 from datetime import time
 
-from db_2024.src.db_service import DbService, DATABASE_URL
+from src.db_service import DbService, DATABASE_URL
 
 
 class PlanItem(BaseModel):

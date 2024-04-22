@@ -70,6 +70,22 @@ class KudoRepository:
             row = await conn.fetchrow(query, kudo.purpose, kudo.owner_id, kudo.id)
             return Kudo(**row)
 
+    async def get_kudos_by_personid(self, person_id: str) -> list[Kudo]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM kudo WHERE owner_id = $1"
+            records = await connection.fetch(query, person_id)
+            return [Kudo(**r) for r in records]
+
+    async def get_kudos_by_purpose_containing(self, keyword: str) -> list[Kudo]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM kudo WHERE purpose LIKE $1"
+
+            # records = await connection.fetch(query, f"%{keyword}%")
+            records = await connection.fetch(
+                "SELECT * FROM kudo WHERE purpose LIKE '%' || $1 || '%'", keyword
+            )
+            return [Kudo(**r) for r in records]
+
 
 async def test_CRD(repo: KudoRepository):
     k1 = Kudo(id=uuid4(), purpose='p1', owner_id='s4411')
@@ -84,7 +100,6 @@ async def test_CRD(repo: KudoRepository):
     k1_deleted = await repo.read(k1.id)
     assert k1_deleted is None
     logger.info('Delete: OK')
-
 
 
 async def test_update(repo: KudoRepository):
@@ -102,6 +117,22 @@ async def test_update(repo: KudoRepository):
     logger.info('Update: OK')
 
 
+async def test_get_by_purpose(repo: KudoRepository):
+    # arrange
+    k1 = Kudo(id=uuid4(), purpose='gg kadabra ss', owner_id='s4411')
+    k2 = Kudo(id=uuid4(), purpose='bruh kadabra done', owner_id='s4411')
+    await repo.create(k1)
+    await repo.create(k2)
+
+    # act
+    kudos = await repo.get_kudos_by_purpose_containing('kadabra')
+
+    # assert
+    assert len(kudos) >= 2
+    print(kudos)
+
+
+
 async def main():
     DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
     # protocol :// user : password @ host : port / name_of_db
@@ -111,7 +142,7 @@ async def main():
 
     await test_CRD(repo)
     await test_update(repo)
-
+    await test_get_by_purpose(repo)
 
 if __name__ == '__main__':
     run(main())

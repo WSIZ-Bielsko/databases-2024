@@ -88,14 +88,15 @@ class DogsCRUD:
 
     async def get_dogs_by_lineage(self, lineage: str) -> list[Dog]:
         async with self.pool.acquire() as connection:
-            query = "SELECT id, breed_id, lineage, birthdate, name FROM dogs WHERE lineage = $1"
+            query = "SELECT * FROM dogs WHERE lineage = $1"
             records = await connection.fetch(query, lineage)
             return [Dog(**record) for record in records]
 
     async def get_dogs_older_than(self, age_mths: int, limit: int, offset: int) -> list[Dog]:
         bdate = datetime.now() - timedelta(days=30 * age_mths)
         async with self.pool.acquire() as connection:
-            query = "SELECT * from dogs where birthdate > $1 order by birthdate asc, id limit $2 offset $3"
+            query = ("SELECT * from dogs where birthdate > $1 order "
+                     "by birthdate asc, id limit $2 offset $3")
             records = await connection.fetch(query, bdate, limit, offset)
             return [Dog(**record) for record in records]
 
