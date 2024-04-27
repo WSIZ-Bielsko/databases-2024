@@ -4,8 +4,8 @@ from uuid import uuid4
 import asyncpg
 from loguru import logger
 
-from common import connect_db
-from model import *
+from src.kudos.common import connect_db
+from src.kudos.model import *
 
 """
 preplexity.ai prompt
