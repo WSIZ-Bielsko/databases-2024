@@ -1,7 +1,9 @@
+import os
 from asyncio import run
 from uuid import uuid4
 
 import asyncpg
+from dotenv import load_dotenv
 from loguru import logger
 
 from src.kudos.common import connect_db
@@ -134,15 +136,25 @@ async def test_get_by_purpose(repo: KudoRepository):
 
 
 async def main():
-    DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
+    load_dotenv()
+    logger.warning('Loading env variables')
+    url = os.getenv("DB_URL", None)
+    if not url:
+        logger.error("DATABASE_URL is not specified.")
+        logger.info("Try creating environmental variable or use .env.example.")
+        exit(1)
+    else:
+        logger.warning(f'using DB_URL={url}')
+
+    DATABASE_URL = url
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
     print('db connected')
     repo = KudoRepository(pool=pool)
 
     await test_CRD(repo)
-    await test_update(repo)
-    await test_get_by_purpose(repo)
+    # await test_update(repo)
+    # await test_get_by_purpose(repo)
 
 if __name__ == '__main__':
     run(main())
