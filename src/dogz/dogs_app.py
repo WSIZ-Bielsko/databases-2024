@@ -98,12 +98,12 @@ async def delete_dog(request):
 
 
 # --------------------- END OF GENERATED CODE ------------------------
-# todo: above -- must replace "dogs_crud" with function call "dogs_crud()"
+# todo: above -- must replace "kudo_repo" with function call "kudo_repo()"
 
 # ------------------ code written per hand:
 
 def dogs_crud() -> DogsCRUD:
-    return app_state["dogs_crud"]
+    return app_state["kudo_repo"]
 
 
 async def app_factory():
@@ -122,7 +122,7 @@ async def app_factory():
     DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
-    app_state["dogs_crud"] = DogsCRUD(pool)
+    app_state["kudo_repo"] = DogsCRUD(pool)
 
     print('db connected')
     return app

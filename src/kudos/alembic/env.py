@@ -28,6 +28,7 @@ target_metadata = None
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+# ------- insert allowing usage of .env files
 load_dotenv()
 logger.warning('Loading env variables')
 url = os.getenv("DATABASE_URL", None)
@@ -38,6 +39,7 @@ else:
     logger.error("DATABASE_URL is not specified.")
     logger.info("Try creating environmental variable or use .env.example.")
     exit(1)
+# ------- (end of) insert allowing usage of .env files
 
 
 def run_migrations_offline() -> None:
