@@ -4,8 +4,8 @@ from asyncio import run
 from src.db_service import DbService
 from model import Group
 
-DEFAULT_DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
-DATABASE_URL = os.getenv('DB_URL', DEFAULT_DATABASE_URL)
+DEFAULT_DATABASE_URL = "postgres://postgres:postgres@10.10.1.200:5432/postgres"
+DATABASE_URL = os.getenv("DB_URL", DEFAULT_DATABASE_URL)
 
 """
 perplexity.ai prompt:
@@ -32,9 +32,10 @@ class GroupCRUD:
         async with self.pool.acquire() as conn:
             query = """INSERT INTO groups (grupaid, nazwa, opis, active)
             VALUES ($1, $2, $3, $4) RETURNING grupaid"""
-            record = await conn.fetchrow(query, group.grupaid, group.nazwa,
-                                         group.opis, group.active)
-            return record['grupaid']
+            record = await conn.fetchrow(
+                query, group.grupaid, group.nazwa, group.opis, group.active
+            )
+            return record["grupaid"]
 
     async def read_group(self, grupaid: int):
         async with self.pool.acquire() as conn:
@@ -47,8 +48,9 @@ class GroupCRUD:
         async with self.pool.acquire() as conn:
             query = """UPDATE groups SET nazwa = $2, opis = $3, active = $4
             WHERE grupaid = $1"""
-            await conn.execute(query, group.grupaid, group.nazwa,
-                               group.opis, group.active)
+            await conn.execute(
+                query, group.grupaid, group.nazwa, group.opis, group.active
+            )
 
     async def delete_group(self, grupaid: int):
         async with self.pool.acquire() as conn:
@@ -62,7 +64,7 @@ async def main():
 
     pool = db.pool
     repo = GroupCRUD(pool)
-    group = Group(grupaid=991, nazwa='Zielarze', opis='N/A', active=True)
+    group = Group(grupaid=991, nazwa="Zielarze", opis="N/A", active=True)
     await repo.create_group(group)
 
     g = await repo.read_group(grupaid=991)
@@ -73,6 +75,6 @@ async def main():
     print(g)  # None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # print(DATABASE_URL)
     run(main())

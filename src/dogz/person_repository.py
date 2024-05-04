@@ -42,7 +42,7 @@ class PersonCRUD:
                 person.pesel,
                 person.name,
                 person.phone,
-                person.password_hash
+                person.password_hash,
             )
 
     async def read(self, person_id: UUID) -> Person | None:
@@ -79,7 +79,7 @@ class PersonCRUD:
                 person.name,
                 person.phone,
                 person.password_hash,
-                person.id
+                person.id,
             )
 
     async def delete(self, person_id: UUID):
@@ -100,17 +100,17 @@ def random_person():
         pesel=faker.ssn(),
         name=faker.name(),
         phone=faker.phone_number(),
-        password_hash=ph.hash('1234')
+        password_hash=ph.hash("1234"),
     )
 
 
 async def main():
-    DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
+    DATABASE_URL = "postgres://postgres:postgres@10.10.1.200:5432/postgres"
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
-    print('db connected')
+    print("db connected")
     repo = PersonCRUD(pool=pool)
-    logger.info('connection works')
+    logger.info("connection works")
     p = random_person()
     await repo.create(person=p)
     print(p)
@@ -126,5 +126,5 @@ async def main():
     print(all_persons)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run(main())

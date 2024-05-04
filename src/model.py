@@ -35,11 +35,11 @@ class PlanItem(BaseModel):
     hour: time
     day_of_week: str
 
-    @field_serializer('hour')
+    @field_serializer("hour")
     def serialize_time(self, d: time, _info):
         return str(d)
 
 
-if __name__ == '__main__':
-    g = Group(grupaid=1, nazwa='G', opis='gg', active=True)
+if __name__ == "__main__":
+    g = Group(grupaid=1, nazwa="G", opis="gg", active=True)
     print(g.dict())

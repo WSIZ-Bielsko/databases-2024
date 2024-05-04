@@ -18,26 +18,26 @@ async def main():
 
     await db.remove_lecture_group_teacher()
 
-    logger.info('importing all groups from wd')
+    logger.info("importing all groups from wd")
     groups = wd.get_groups()
     for g in groups:
         await db.create_group(g)
-    logger.info('importing all groups from wd complete')
+    logger.info("importing all groups from wd complete")
 
-    logger.info('importing all teachers from wd')
+    logger.info("importing all teachers from wd")
     teachers = wd.get_teachers()
     for t in teachers:
         await db.create_teacher(t)
-    logger.info('importing all teachers from wd complete')
+    logger.info("importing all teachers from wd complete")
 
-    logger.info('importing all lectures from wd')
+    logger.info("importing all lectures from wd")
     lectures = wd.get_lectures()
     for e in lectures:
         await db.create_lecture(e)
-    logger.info('importing all lectures from wd complete')
+    logger.info("importing all lectures from wd complete")
 
-    logger.warning('all teachers, groups and lectures imported from WD')
+    logger.warning("all teachers, groups and lectures imported from WD")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run(main())

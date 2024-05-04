@@ -7,6 +7,6 @@ class Kudo(BaseModel):
     purpose: str  # id_przedmiotu lub inny
     owner_id: str  # album w WD
 
-    @field_serializer('id')
+    @field_serializer("id")
     def serialize_id(self, id: UUID, _info):
         return str(id)

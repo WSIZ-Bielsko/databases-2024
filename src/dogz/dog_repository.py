@@ -56,8 +56,9 @@ class DogsCRUD:
             query = """
             INSERT INTO dogs (id, breed_id, lineage, birthdate, name)
              VALUES ($1, $2, $3, $4, $5) RETURNING *"""
-            record = await c.fetchrow(query, dog.id, dog.breed_id,
-                                      dog.lineage, dog.birthdate, dog.name)
+            record = await c.fetchrow(
+                query, dog.id, dog.breed_id, dog.lineage, dog.birthdate, dog.name
+            )
             return Dog(**record)
 
     async def read_dog(self, dog_id: UUID) -> Dog | None:
@@ -77,8 +78,9 @@ class DogsCRUD:
             query = """UPDATE dogs
             SET breed_id = $1, lineage = $2,
             birthdate = $3, name = $4 WHERE id = $5"""
-            await connection.execute(query, dog.breed_id, dog.lineage,
-                                     dog.birthdate, dog.name, dog_id)
+            await connection.execute(
+                query, dog.breed_id, dog.lineage, dog.birthdate, dog.name, dog_id
+            )
 
     async def delete_dog(self, dog_id: UUID) -> None:
         async with self.pool.acquire() as connection:
@@ -92,8 +94,7 @@ class DogsCRUD:
     async def remove_extinct_dogs(self):
         async with self.pool.acquire() as connection:
             async with connection.transaction():
-                await connection.execute(
-                    "DELETE FROM dogs WHERE lineage = 'Extinct'")
+                await connection.execute("DELETE FROM dogs WHERE lineage = 'Extinct'")
 
     # AI: Write a method (using self.pool) returning all instances of Dog from
     # the db where lineage has a value given in the argument of the method
@@ -104,19 +105,23 @@ class DogsCRUD:
             records = await connection.fetch(query, lineage)
             return [Dog(**record) for record in records]
 
-    async def get_dogs_older_than(self, age_mths: int,
-                                  limit: int, offset: int) -> list[Dog]:
+    async def get_dogs_older_than(
+        self, age_mths: int, limit: int, offset: int
+    ) -> list[Dog]:
         bdate = datetime.now() - timedelta(days=30 * age_mths)
         async with self.pool.acquire() as connection:
-            query = ("SELECT * from dogs where birthdate > $1 order "
-                     "by birthdate asc, id limit $2 offset $3")
+            query = (
+                "SELECT * from dogs where birthdate > $1 order "
+                "by birthdate asc, id limit $2 offset $3"
+            )
             records = await connection.fetch(query, bdate, limit, offset)
             return [Dog(**record) for record in records]
 
-    async def get_dogs_name_containing(self, substring_of_name: str,
-                                       limit: int, offset: int) -> list[Dog]:
+    async def get_dogs_name_containing(
+        self, substring_of_name: str, limit: int, offset: int
+    ) -> list[Dog]:
         async with self.pool.acquire() as connection:
-            pattern = f'%{substring_of_name}%'
+            pattern = f"%{substring_of_name}%"
             query = """select * from dogs
             where name ilike $1 order by name limit $2 offset $3"""
             records = await connection.fetch(query, pattern, limit, offset)
@@ -144,31 +149,27 @@ class DogsCRUD:
     async def assign_person_to_dog(self, person_id: UUID, dog_id: UUID):
         async with self.pool.acquire() as connection:
             try:
-                query = ("insert into person_dogs(dog_id, person_id)"
-                         "values ($1,$2)")
+                query = "insert into person_dogs(dog_id, person_id)" "values ($1,$2)"
                 await connection.execute(query, dog_id, person_id)
-                logger.info(f'dog id={dog_id} to {person_id=}: assigned')
+                logger.info(f"dog id={dog_id} to {person_id=}: assigned")
             except asyncpg.exceptions.UniqueViolationError:
-                logger.warning(f'dog id={dog_id} to {person_id=}:'
-                               f' already assigned')
+                logger.warning(f"dog id={dog_id} to {person_id=}:" f" already assigned")
 
     async def unassign_person_to_dog(self, person_id: UUID, dog_id: UUID):
         async with self.pool.acquire() as connection:
             try:
-                query = ("delete from person_dogs where"
-                         " person_id=$1 and dog_id=$2")
+                query = "delete from person_dogs where" " person_id=$1 and dog_id=$2"
                 await connection.execute(query, person_id, dog_id)
-                logger.info(f'dog id={dog_id} to {person_id=}: unassigned')
+                logger.info(f"dog id={dog_id} to {person_id=}: unassigned")
             except asyncpg.exceptions.UniqueViolationError:
-                logger.warning(f'dog id={dog_id} to {person_id=}:'
-                               f' unassign error')
+                logger.warning(f"dog id={dog_id} to {person_id=}:" f" unassign error")
 
 
 async def main():
-    DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
+    DATABASE_URL = "postgres://postgres:postgres@10.10.1.200:5432/postgres"
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
-    print('db connected')
+    print("db connected")
     repo = DogsCRUD(pool=pool)
 
     # dd = await repo.get_dogs_older_than(age_mths=10, limit=10, offset=0)
@@ -201,17 +202,19 @@ async def main():
     # logger.warning(deleted_dog)  # None
 
     await repo.assign_person_to_dog(
-        person_id=UUID('52c667f5-647f-457b-90d6-07f5979070dd'),
-        dog_id=UUID('5293bb18-a615-4feb-b3dd-b5b21660f29b'))
+        person_id=UUID("52c667f5-647f-457b-90d6-07f5979070dd"),
+        dog_id=UUID("5293bb18-a615-4feb-b3dd-b5b21660f29b"),
+    )
 
     # owners = await repo.get_persons_assigned_to_dog(
     #     dog_id=UUID('0667c52b-fb32-487c-aebf-811d435334b9'))
 
     my_dogs = await repo.get_dogs_assigned_to_person(
-        person_id=UUID('52c667f5-647f-457b-90d6-07f5979070dd'))
+        person_id=UUID("52c667f5-647f-457b-90d6-07f5979070dd")
+    )
     for d in my_dogs:
         print(d)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run(main())

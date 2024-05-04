@@ -13,15 +13,15 @@ class Dog(BaseModel):
 
     # serializers written per hand
 
-    @field_serializer('id')
+    @field_serializer("id")
     def serialize_id(self, id: UUID, _info):
         return str(id)
 
-    @field_serializer('breed_id')
+    @field_serializer("breed_id")
     def serialize_breed_id(self, breed_id: UUID, _info):
         return str(breed_id)
 
-    @field_serializer('birthdate')
+    @field_serializer("birthdate")
     def serialize_birthdate(self, birthdate: date, _info):
         return str(birthdate)
 

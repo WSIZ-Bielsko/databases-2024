@@ -38,8 +38,7 @@ class KudoRepository:
                   VALUES ($1, $2, $3)
                   RETURNING *
               """
-            row = await conn.fetchrow(query, kudo.id, kudo.purpose,
-                                      kudo.owner_id)
+            row = await conn.fetchrow(query, kudo.id, kudo.purpose, kudo.owner_id)
             return Kudo(**row)
 
     async def read(self, kudo_id: UUID) -> Kudo | None:
@@ -71,8 +70,7 @@ class KudoRepository:
                 WHERE id = $3
                 RETURNING *
             """
-            row = await conn.fetchrow(query, kudo.purpose, kudo.owner_id,
-                                      kudo.id)
+            row = await conn.fetchrow(query, kudo.purpose, kudo.owner_id, kudo.id)
             return Kudo(**row)
 
     async def get_kudos_by_personid(self, person_id: str) -> list[Kudo]:
@@ -81,54 +79,55 @@ class KudoRepository:
             records = await connection.fetch(query, person_id)
             return [Kudo(**r) for r in records]
 
-    async def get_kudos_by_purpose_containing(self,
-                                              keyword: str) -> list[Kudo]:
+    async def get_kudos_by_purpose_containing(self, keyword: str) -> list[Kudo]:
         async with self.pool.acquire() as connection:
-            records = await connection.fetch("""SELECT * FROM kudo
-            WHERE purpose LIKE '%' || $1 || '%'""", keyword
-                                             )
+            records = await connection.fetch(
+                """SELECT * FROM kudo
+            WHERE purpose LIKE '%' || $1 || '%'""",
+                keyword,
+            )
             return [Kudo(**r) for r in records]
 
 
 async def test_CRD(repo: KudoRepository):
-    k1 = Kudo(id=uuid4(), purpose='p1', owner_id='s4411')
+    k1 = Kudo(id=uuid4(), purpose="p1", owner_id="s4411")
     await repo.create(k1)
-    logger.info('Create: OK')
+    logger.info("Create: OK")
 
     k1_ = await repo.read(k1.id)
     assert k1 == k1_
-    logger.info('Read: OK')
+    logger.info("Read: OK")
 
     await repo.delete(k1.id)
     k1_deleted = await repo.read(k1.id)
     assert k1_deleted is None
-    logger.info('Delete: OK')
+    logger.info("Delete: OK")
 
 
 async def test_update(repo: KudoRepository):
     # arrange
-    k1 = Kudo(id=uuid4(), purpose='p1', owner_id='s4411')
+    k1 = Kudo(id=uuid4(), purpose="p1", owner_id="s4411")
     await repo.create(k1)
 
     # act
-    k1.purpose = 'loremipsum'
+    k1.purpose = "loremipsum"
     await repo.update(k1)
 
     # assert
     k1_updated = await repo.read(k1.id)
     assert k1_updated.purpose == k1.purpose
-    logger.info('Update: OK')
+    logger.info("Update: OK")
 
 
 async def test_get_by_purpose(repo: KudoRepository):
     # arrange
-    k1 = Kudo(id=uuid4(), purpose='gg kadabra ss', owner_id='s4411')
-    k2 = Kudo(id=uuid4(), purpose='bruh kadabra done', owner_id='s4411')
+    k1 = Kudo(id=uuid4(), purpose="gg kadabra ss", owner_id="s4411")
+    k2 = Kudo(id=uuid4(), purpose="bruh kadabra done", owner_id="s4411")
     await repo.create(k1)
     await repo.create(k2)
 
     # act
-    kudos = await repo.get_kudos_by_purpose_containing('kadabra')
+    kudos = await repo.get_kudos_by_purpose_containing("kadabra")
 
     # assert
     assert len(kudos) >= 2
@@ -137,19 +136,19 @@ async def test_get_by_purpose(repo: KudoRepository):
 
 async def main():
     load_dotenv()
-    logger.warning('Loading env variables')
+    logger.warning("Loading env variables")
     url = os.getenv("DB_URL", None)
     if not url:
         logger.error("DATABASE_URL is not specified.")
         logger.info("Try creating environmental variable or use .env")
         exit(1)
     else:
-        logger.warning(f'using DB_URL={url}')
+        logger.warning(f"using DB_URL={url}")
 
     DATABASE_URL = url
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
-    print('db connected')
+    print("db connected")
     repo = KudoRepository(pool=pool)
 
     await test_CRD(repo)
@@ -157,5 +156,5 @@ async def main():
     # await test_get_by_purpose(repo)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run(main())

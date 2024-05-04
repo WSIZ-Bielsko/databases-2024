@@ -76,7 +76,7 @@ async def create_dog(request):
 
 # Get a dog by ID
 async def get_dog(request):
-    dog_id = request.match_info['dog_id']
+    dog_id = request.match_info["dog_id"]
     dog = await dogs_crud().read_dog(uuid.UUID(dog_id))
     if dog:
         return web.json_response(dog.dict())
@@ -86,7 +86,7 @@ async def get_dog(request):
 
 # Update a dog by ID
 async def update_dog(request):
-    dog_id = request.match_info['dog_id']
+    dog_id = request.match_info["dog_id"]
     data = await request.json()
     updated_dog = Dog(**data)
     await dogs_crud().update_dog(uuid.UUID(dog_id), updated_dog)
@@ -95,7 +95,7 @@ async def update_dog(request):
 
 # Delete a dog by ID
 async def delete_dog(request):
-    dog_id = request.match_info['dog_id']
+    dog_id = request.match_info["dog_id"]
     await dogs_crud().delete_dog(uuid.UUID(dog_id))
     return web.Response(status=204)
 
@@ -104,6 +104,7 @@ async def delete_dog(request):
 # todo: above -- must replace "kudo_repo" with function call "kudo_repo()"
 
 # ------------------ code written per hand:
+
 
 def dogs_crud() -> DogsCRUD:
     return app_state["kudo_repo"]
@@ -118,19 +119,19 @@ async def app_factory():
     app = web.Application()
 
     # Add routes to the application
-    app.router.add_post('/dogs', create_dog)
-    app.router.add_get('/dogs/{dog_id}', get_dog)
-    app.router.add_put('/dogs/{dog_id}', update_dog)
-    app.router.add_delete('/dogs/{dog_id}', delete_dog)
+    app.router.add_post("/dogs", create_dog)
+    app.router.add_get("/dogs/{dog_id}", get_dog)
+    app.router.add_put("/dogs/{dog_id}", update_dog)
+    app.router.add_delete("/dogs/{dog_id}", delete_dog)
 
-    DATABASE_URL = 'postgres://postgres:postgres@10.10.1.200:5432/postgres'
+    DATABASE_URL = "postgres://postgres:postgres@10.10.1.200:5432/postgres"
     # protocol :// user : password @ host : port / name_of_db
     pool = await connect_db(DATABASE_URL)
     app_state["kudo_repo"] = DogsCRUD(pool)
 
-    print('db connected')
+    print("db connected")
     return app
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     web.run_app(app_factory(), port=5000)

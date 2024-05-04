@@ -30,11 +30,11 @@ target_metadata = None
 
 # ------- insert allowing usage of .env files
 load_dotenv()
-logger.warning('Loading env variables')
+logger.warning("Loading env variables")
 url = os.getenv("DATABASE_URL", None)
 if url:
     config.set_main_option("sqlalchemy.url", url)
-    logger.warning(f'using DATABASE_URL={url}')
+    logger.warning(f"using DATABASE_URL={url}")
 else:
     logger.error("DATABASE_URL is not specified.")
     logger.info("Try creating environmental variable or use .env.example.")
@@ -80,9 +80,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

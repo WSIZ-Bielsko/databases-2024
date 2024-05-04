@@ -10,8 +10,8 @@ def test_abra_kadabra():
 
 
 def test_use_app_modules():
-    z = Kudo(id=uuid4(), purpose='test', owner_id='s4444')
-    assert z.purpose.startswith('test')
+    z = Kudo(id=uuid4(), purpose="test", owner_id="s4444")
+    assert z.purpose.startswith("test")
     s = z.model_dump()
     assert isinstance(s, dict)
-    assert 'owner_id' in s
+    assert "owner_id" in s

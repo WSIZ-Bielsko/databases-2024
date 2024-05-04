@@ -19,6 +19,7 @@ in each method get the connection via
 
 
 """
+
 from asyncio import run
 
 from pydantic import BaseModel
@@ -46,12 +47,16 @@ class PlanItemCRUD:
             query = """INSERT INTO plan_items (group_id, lecture_id,
             teacher_id, room, hour, day_of_week)
             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"""
-            record = await conn.fetchrow(query, plan_item.group_id,
-                                         plan_item.lecture_id,
-                                         plan_item.teacher_id,
-                                         plan_item.room, plan_item.hour,
-                                         plan_item.day_of_week)
-            return record['id']
+            record = await conn.fetchrow(
+                query,
+                plan_item.group_id,
+                plan_item.lecture_id,
+                plan_item.teacher_id,
+                plan_item.room,
+                plan_item.hour,
+                plan_item.day_of_week,
+            )
+            return record["id"]
 
     async def get_plan_item(self, plan_item_id: int):
         async with self.pool.acquire() as conn:
@@ -59,16 +64,20 @@ class PlanItemCRUD:
             record = await conn.fetchrow(query, plan_item_id)
             return record
 
-    async def update_plan_item(self, plan_item_id: int,
-                               new_plan_item: PlanItem):
+    async def update_plan_item(self, plan_item_id: int, new_plan_item: PlanItem):
         async with self.pool.acquire() as conn:
             query = """UPDATE plan_items SET group_id=$1, lecture_id=$2,
             teacher_id=$3, room=$4, hour=$5, day_of_week=$6 WHERE id=$7"""
-            await conn.execute(query, new_plan_item.group_id,
-                               new_plan_item.lecture_id,
-                               new_plan_item.teacher_id, new_plan_item.room,
-                               new_plan_item.hour, new_plan_item.day_of_week,
-                               plan_item_id)
+            await conn.execute(
+                query,
+                new_plan_item.group_id,
+                new_plan_item.lecture_id,
+                new_plan_item.teacher_id,
+                new_plan_item.room,
+                new_plan_item.hour,
+                new_plan_item.day_of_week,
+                plan_item_id,
+            )
 
     async def delete_plan_item(self, plan_item_id: int):
         async with self.pool.acquire() as conn:
@@ -82,8 +91,15 @@ async def main():
 
     pool = db.pool
     repo = PlanItemCRUD(pool)
-    item = PlanItem(id=111, group_id=12, lecture_id=88, teacher_id=115,
-                    room='S91', hour='12:00', day_of_week='Fri')
+    item = PlanItem(
+        id=111,
+        group_id=12,
+        lecture_id=88,
+        teacher_id=115,
+        room="S91",
+        hour="12:00",
+        day_of_week="Fri",
+    )
     await repo.create_plan_item(item)
 
     g = await repo.get_plan_item(plan_item_id=1)
@@ -94,6 +110,6 @@ async def main():
     # print(g)  # None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # print(DATABASE_URL)
     run(main())
