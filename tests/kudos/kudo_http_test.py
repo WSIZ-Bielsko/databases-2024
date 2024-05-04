@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 from aiohttp.test_utils import TestClient
-from http_conftest import cli, app_fixture
+from http_conftest import cli
 from src.kudos.kudo_repository import KudoRepository
 from src.kudos.model import Kudo
 
