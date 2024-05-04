@@ -12,10 +12,11 @@ async def connect_db(database_url: str = None) -> Pool:
         url = os.getenv("DB_URL", None)
         if not url:
             logger.error("DB_URL is not specified.")
-            logger.info("Try creating environmental variable or use .env.example.")
+            logger.info("Try creating environmental variable or use .env")
             exit(1)
         else:
             logger.warning(f'using DB_URL={url}')
         database_url = url
-    pool = await asyncpg.create_pool(database_url, min_size=5, max_size=10, timeout=30, command_timeout=5)
+    pool = await asyncpg.create_pool(database_url, min_size=5, max_size=10,
+                                     timeout=30, command_timeout=5)
     return pool

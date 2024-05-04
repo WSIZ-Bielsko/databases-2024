@@ -1,13 +1,7 @@
-import json
-
 import requests  # `pip install requests` or --better-- `poetry update`
-
-
-
 
 url = 'http://localhost:8087/add'
 data = {'a': 5, 'b': 12}
-
 
 # print(json.dumps(data))
 

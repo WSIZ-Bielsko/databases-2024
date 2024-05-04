@@ -6,12 +6,14 @@ from faker import Faker
 from loguru import logger
 
 from common import connect_db
-from model import *
+from model import Person, Dog
 from dog_repository import DogsCRUD
 from person_repository import PersonCRUD
 
 
-async def assign_owners_randomly(dogs_repo: DogsCRUD, persons_repo: PersonCRUD, n_assignments: int):
+async def assign_owners_randomly(dogs_repo: DogsCRUD,
+                                 persons_repo: PersonCRUD,
+                                 n_assignments: int):
     logger.info(f'assigning {n_assignments} owners randomly: start')
     dog_ids = [d.id for d in await dogs_repo.read_all()]
     person_ids = [p.id for p in await persons_repo.read_all()]
@@ -29,7 +31,9 @@ async def generate_random_dogs(dogs_repo: DogsCRUD, n_dogs: int):
     fake = Faker()
     for _ in range(n_dogs):
         d = Dog(id=uuid4(), breed_id=uuid4(), lineage=fake.name(),
-                birthdate=fake.date_time_between(start_date='-4d', end_date='now').date(), name=fake.name())
+                birthdate=fake.date_time_between(start_date='-4d',
+                                                 end_date='now').date(),
+                name=fake.name())
         await dogs_repo.create_dog(d)
         logger.debug(f'dog {d} saved')
 

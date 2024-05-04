@@ -1,5 +1,5 @@
 import requests
-from model import *
+from model import Group, Lecture, Teacher
 
 
 class WdProxy:
@@ -12,21 +12,21 @@ class WdProxy:
         url = f'{self.WD_URL}/lectures?active=true&wdauth={self.wdauth}'
         res = requests.get(url)
         lectures = res.json()
-        nice_lectures = [Lecture(**l) for l in lectures]
+        nice_lectures = [Lecture(**lct) for lct in lectures]
         return nice_lectures
 
     def get_teachers(self) -> list[Teacher]:
         url = f'{self.WD_URL}/teachers?wdauth={self.wdauth}'
         res = requests.get(url)
         teachers = res.json()
-        teachers = [Teacher(**l) for l in teachers]
+        teachers = [Teacher(**t) for t in teachers]
         return teachers
 
     def get_groups(self) -> list[Group]:
         url = f'{self.WD_URL}/groups?active=True&wdauth={self.wdauth}'
         res = requests.get(url)
         groups = res.json()
-        groups = [Group(**l) for l in groups]
+        groups = [Group(**g) for g in groups]
         return groups
 
 

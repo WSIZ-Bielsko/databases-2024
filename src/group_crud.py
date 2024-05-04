@@ -10,19 +10,19 @@ DATABASE_URL = os.getenv('DB_URL', DEFAULT_DATABASE_URL)
 """
 perplexity.ai prompt:
 
-write a class GroupCRUD with methods for CRUD operations using asyncpg for the following pydantic data class:
+write a class GroupCRUD with methods for CRUD operations using asyncpg
+for the following pydantic data class:
 
 class Group(BaseModel):
     grupaid: int
     nazwa: str
     opis: str
     active: bool
-    
-in each method get the connection via `async with self.pool.acquire() as conn:`. 
-    
 
-
+in each method get the connection via
+`async with self.pool.acquire() as conn:`.
 """
+
 
 class GroupCRUD:
     def __init__(self, pool):
@@ -30,8 +30,10 @@ class GroupCRUD:
 
     async def create_group(self, group: Group):
         async with self.pool.acquire() as conn:
-            query = "INSERT INTO groups (grupaid, nazwa, opis, active) VALUES ($1, $2, $3, $4) RETURNING grupaid"
-            record = await conn.fetchrow(query, group.grupaid, group.nazwa, group.opis, group.active)
+            query = """INSERT INTO groups (grupaid, nazwa, opis, active)
+            VALUES ($1, $2, $3, $4) RETURNING grupaid"""
+            record = await conn.fetchrow(query, group.grupaid, group.nazwa,
+                                         group.opis, group.active)
             return record['grupaid']
 
     async def read_group(self, grupaid: int):
@@ -43,8 +45,10 @@ class GroupCRUD:
 
     async def update_group(self, group: Group):
         async with self.pool.acquire() as conn:
-            query = "UPDATE groups SET nazwa = $2, opis = $3, active = $4 WHERE grupaid = $1"
-            await conn.execute(query, group.grupaid, group.nazwa, group.opis, group.active)
+            query = """UPDATE groups SET nazwa = $2, opis = $3, active = $4
+            WHERE grupaid = $1"""
+            await conn.execute(query, group.grupaid, group.nazwa,
+                               group.opis, group.active)
 
     async def delete_group(self, grupaid: int):
         async with self.pool.acquire() as conn:

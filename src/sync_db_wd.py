@@ -5,7 +5,8 @@ from db_service import DbService, DATABASE_URL
 from loguru import logger
 
 """
-Code allows to import lecture, teacher and group info from WD (wsiz) to the internal database. 
+Code allows to import lecture, teacher and group info from
+the WD (wsiz) to the internal database.
 """
 
 

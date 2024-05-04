@@ -25,7 +25,8 @@ class Summit(BaseModel):
 
 
 async def connect_db(database_url: str) -> Pool:
-    pool = await asyncpg.create_pool(database_url, min_size=5, max_size=10, timeout=30, command_timeout=5)
+    pool = await asyncpg.create_pool(database_url, min_size=5, max_size=10,
+                                     timeout=30, command_timeout=5)
     return pool
 
 
@@ -39,9 +40,11 @@ async def get_summits(pool: Pool) -> list[Summit]:
 
 async def create_summit(pool: Pool, summit: Summit) -> Summit:
     async with pool.acquire() as conn:
-        res = await conn.fetchrow('''INSERT INTO summits (name, altitude, position_long, position_lat) 
-                                        VALUES ($1, $2, $3, $4) returning *''',
-                                  summit.name, summit.altitude, summit.position_long, summit.position_lat)
+        res = await conn.fetchrow('''INSERT INTO summits
+            (name, altitude, position_long, position_lat)
+            VALUES ($1, $2, $3, $4) returning *''',
+                                  summit.name, summit.altitude,
+                                  summit.position_long, summit.position_lat)
         return Summit(**res)
 
 
@@ -49,14 +52,17 @@ async def update_summit(pool: Pool, summit: Summit):
     async with pool.acquire() as conn:
         await conn.execute('''
             UPDATE summits
-            SET name = $1, altitude = $2, position_long = $3, position_lat = $4 
+            SET name = $1, altitude = $2, position_long = $3, position_lat = $4
             WHERE id = $5
-        ''', summit.name, summit.altitude, summit.position_long, summit.position_lat, summit.id)
+        ''', summit.name, summit.altitude, summit.position_long,
+                           summit.position_lat, summit.id)
 
 
 async def delete_summit(pool: Pool, summit_id: int) -> Summit:
     async with pool.acquire() as conn:
-        res = await conn.fetchrow('DELETE FROM summits WHERE id=$1 RETURNING *', summit_id)
+        res = await conn.fetchrow('DELETE FROM summits'
+                                  'WHERE id=$1 RETURNING *',
+                                  summit_id)
         return Summit(**res)
 
 
@@ -66,7 +72,8 @@ async def main():
     pool = await connect_db(DATABASE_URL)
     print('db connected')
 
-    lonelyMountain = Summit(id=None, name='Lonely Mountain 4', altitude=441.55, position_long=45.1234,
+    lonelyMountain = Summit(id=None, name='Lonely Mountain 4', altitude=441.55,
+                            position_long=45.1234,
                             position_lat=67.9854)
 
     x = await create_summit(pool, lonelyMountain)

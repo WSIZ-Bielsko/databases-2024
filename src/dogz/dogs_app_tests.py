@@ -1,9 +1,10 @@
+from datetime import date
 from uuid import UUID, uuid4
 
 import requests
 from loguru import logger
 
-from model import *
+from model import Dog
 
 URL = 'http://localhost:5000'
 
@@ -43,7 +44,8 @@ if __name__ == '__main__':
     dog.name = 'Szarik'
     update_dog(dog)
 
-    new_dog = Dog(id=uuid4(), breed_id=uuid4(), lineage='N/A', birthdate=date(1969, 1, 24), name='Scooby Doo')
+    new_dog = Dog(id=uuid4(), breed_id=uuid4(), lineage='N/A',
+                  birthdate=date(1969, 1, 24), name='Scooby Doo')
     create_dog(new_dog)
     new_dog.lineage = 'Extinct'
     update_dog(new_dog)

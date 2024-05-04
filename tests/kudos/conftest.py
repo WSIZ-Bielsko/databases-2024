@@ -7,7 +7,13 @@ from loguru import logger
 
 from src.kudos.common import connect_db
 from src.kudos.kudo_repository import KudoRepository
+from src.kudos.kudos_app import app_factory
 from src.kudos.model import Kudo
+
+"""
+This module is automatically loaded (with all fixtures below)
+by pytest; tests don't have to import them.
+"""
 
 
 @pytest_asyncio.fixture
@@ -47,3 +53,8 @@ async def kudo2(kudoRepo: KudoRepository):
     yield kudo
     await kudoRepo.delete(kudo.id)
     logger.info(f'removing kudo with id={kudo.id}')
+
+
+@pytest_asyncio.fixture
+async def cli(aiohttp_client):
+    return await aiohttp_client(await app_factory())

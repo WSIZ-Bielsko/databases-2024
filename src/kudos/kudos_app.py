@@ -1,5 +1,5 @@
-import os
 from uuid import UUID
+
 from aiohttp import web
 from asyncpg import Pool
 from loguru import logger
@@ -56,10 +56,6 @@ def kudo_repo() -> KudoRepository:
 
 
 async def app_factory(pool: Pool = None):
-    """
-    Function run at the startup of the application. If some async initialization is needed - put it in here.
-    i.e. we can initialize database connection here...
-    """
     app = web.Application()
 
     # Add routes to the application

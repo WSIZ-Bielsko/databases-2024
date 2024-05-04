@@ -7,21 +7,22 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from src.kudos.common import connect_db
-from src.kudos.model import *
+from src.kudos.model import Kudo
+from uuid import UUID
 
 """
 preplexity.ai prompt
 
-Write a class KudoRepository with methods for CRUD operations using asyncpg for the following pydantic data class:
+Write a class KudoRepository with methods for CRUD operations using asyncpg
+for the following pydantic data class:
 
 class Kudo(BaseModel):
     id: UUID
     purpose: str  # id_przedmiotu lub inny
     owner_id: str  # album w WD
 
-
-    
-All the method corresponding to Read operation should return instance of Kudo or None.
+All the method corresponding to Read operation should return instance of
+Kudo or None.
 Assume connection pool is assigned in constructor off KudoRepository
 """
 
@@ -37,7 +38,8 @@ class KudoRepository:
                   VALUES ($1, $2, $3)
                   RETURNING *
               """
-            row = await conn.fetchrow(query, kudo.id, kudo.purpose, kudo.owner_id)
+            row = await conn.fetchrow(query, kudo.id, kudo.purpose,
+                                      kudo.owner_id)
             return Kudo(**row)
 
     async def read(self, kudo_id: UUID) -> Kudo | None:
@@ -69,7 +71,8 @@ class KudoRepository:
                 WHERE id = $3
                 RETURNING *
             """
-            row = await conn.fetchrow(query, kudo.purpose, kudo.owner_id, kudo.id)
+            row = await conn.fetchrow(query, kudo.purpose, kudo.owner_id,
+                                      kudo.id)
             return Kudo(**row)
 
     async def get_kudos_by_personid(self, person_id: str) -> list[Kudo]:
@@ -78,14 +81,12 @@ class KudoRepository:
             records = await connection.fetch(query, person_id)
             return [Kudo(**r) for r in records]
 
-    async def get_kudos_by_purpose_containing(self, keyword: str) -> list[Kudo]:
+    async def get_kudos_by_purpose_containing(self,
+                                              keyword: str) -> list[Kudo]:
         async with self.pool.acquire() as connection:
-            query = "SELECT * FROM kudo WHERE purpose LIKE $1"
-
-            # records = await connection.fetch(query, f"%{keyword}%")
-            records = await connection.fetch(
-                "SELECT * FROM kudo WHERE purpose LIKE '%' || $1 || '%'", keyword
-            )
+            records = await connection.fetch("""SELECT * FROM kudo
+            WHERE purpose LIKE '%' || $1 || '%'""", keyword
+                                             )
             return [Kudo(**r) for r in records]
 
 
@@ -134,14 +135,13 @@ async def test_get_by_purpose(repo: KudoRepository):
     print(kudos)
 
 
-
 async def main():
     load_dotenv()
     logger.warning('Loading env variables')
     url = os.getenv("DB_URL", None)
     if not url:
         logger.error("DATABASE_URL is not specified.")
-        logger.info("Try creating environmental variable or use .env.example.")
+        logger.info("Try creating environmental variable or use .env")
         exit(1)
     else:
         logger.warning(f'using DB_URL={url}')
@@ -155,6 +155,7 @@ async def main():
     await test_CRD(repo)
     # await test_update(repo)
     # await test_get_by_purpose(repo)
+
 
 if __name__ == '__main__':
     run(main())

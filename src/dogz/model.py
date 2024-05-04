@@ -46,7 +46,6 @@ class AccessLevel(BaseModel):
     # [client, doctor, admin]
 
 
-
 """
 Generate postgres 15 table for the following pydantic dataclass
 
@@ -56,6 +55,7 @@ class Person(BaseModel):
     name: str
     phone: str
 
-The id field should be random-generated per default, str should be represented as text;
+The id field should be random-generated per default, str should be
+represented as text;
 
 """

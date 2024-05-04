@@ -1,7 +1,4 @@
-import uuid
 from asyncio import run
-from datetime import datetime, timedelta
-from random import randint
 
 import asyncpg
 from argon2 import PasswordHasher
@@ -9,15 +6,17 @@ from faker import Faker
 from loguru import logger
 
 from common import connect_db
-from model import *
+from model import Person
+from uuid import UUID, uuid4
 
 """
 preplexity.ai prompt
 
-Write a class PersonCRUD with methods for CRUD operations using asyncpg for the following pydantic data class:
+Write a class PersonCRUD with methods for CRUD operations using asyncpg
+for the following pydantic data class:
 
 class Person(BaseModel):
-    id: UUID 
+    id: UUID
     pesel: str
     name: str
     phone: str
@@ -53,7 +52,8 @@ class PersonCRUD:
         WHERE id = $1
         """
         row = await self.pool.fetchrow(query, person_id)
-        if row is None: return None
+        if row is None:
+            return None
 
         return Person(**row)
 
@@ -96,7 +96,7 @@ def random_person():
     faker = Faker()
     ph = PasswordHasher()
     return Person(
-        id=uuid.uuid4(),
+        id=uuid4(),
         pesel=faker.ssn(),
         name=faker.name(),
         phone=faker.phone_number(),
@@ -124,6 +124,7 @@ async def main():
 
     all_persons = await repo.read_all()
     print(all_persons)
+
 
 if __name__ == '__main__':
     run(main())

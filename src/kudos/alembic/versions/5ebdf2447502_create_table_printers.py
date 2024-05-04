@@ -1,15 +1,13 @@
 """create table kudo
 
 Revision ID: 5ebdf2447502
-Revises: 
+Revises:
 Create Date: 2024-04-26 16:41:20.555468
 
 """
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = '5ebdf2447502'
@@ -23,7 +21,7 @@ def upgrade() -> None:
     create table printers(
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       ptype text,
-      descrition text 
+      descrition text
     );
     """)
 
