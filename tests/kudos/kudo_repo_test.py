@@ -35,3 +35,14 @@ async def test_fetch_multiple_kudos(kudoRepo: KudoRepository, kudo1: Kudo, kudo2
     all_kudos_of_person = await kudoRepo.get_kudos_by_personid(kudo1.owner_id)
     logger.debug(f"all kudos of owner {kudo1.owner_id}: {all_kudos_of_person}")
     assert len(all_kudos_of_person) == 2
+
+
+@pytest.mark.asyncio
+async def test_can_have_two_kudos_with_same_purpose(kudoRepo: KudoRepository, kudo1: Kudo):
+    kudo_new = Kudo(id=uuid4(), purpose=kudo1.purpose, owner_id=kudo1.owner_id)
+
+    await kudoRepo.create(kudo_new)
+
+    saved = await kudoRepo.read(kudo_new.id)
+
+    assert kudo_new == saved

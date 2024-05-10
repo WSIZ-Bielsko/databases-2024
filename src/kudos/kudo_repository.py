@@ -132,29 +132,3 @@ async def test_get_by_purpose(repo: KudoRepository):
     # assert
     assert len(kudos) >= 2
     print(kudos)
-
-
-async def main():
-    load_dotenv()
-    logger.warning("Loading env variables")
-    url = os.getenv("DB_URL", None)
-    if not url:
-        logger.error("DATABASE_URL is not specified.")
-        logger.info("Try creating environmental variable or use .env")
-        exit(1)
-    else:
-        logger.warning(f"using DB_URL={url}")
-
-    DATABASE_URL = url
-    # protocol :// user : password @ host : port / name_of_db
-    pool = await connect_db(DATABASE_URL)
-    print("db connected")
-    repo = KudoRepository(pool=pool)
-
-    await test_CRD(repo)
-    # await test_update(repo)
-    # await test_get_by_purpose(repo)
-
-
-if __name__ == "__main__":
-    run(main())
