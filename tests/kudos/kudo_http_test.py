@@ -5,6 +5,10 @@ from aiohttp.test_utils import TestClient
 from src.kudos.kudo_repository import KudoRepository
 from src.kudos.model import Kudo
 
+"""
+These tests spin up the (aiohttp) server application, and call it via
+http. 
+"""
 
 @pytest.mark.asyncio
 async def test_healthy(cli: TestClient):

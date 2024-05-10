@@ -18,6 +18,11 @@ by pytest; tests don't have to import them.
 
 @pytest_asyncio.fixture
 async def kudoRepo():
+    """
+    This fixture gives tests using it full access to KudoRepo
+    (so the state of the database can be queried and changed).
+    :return:
+    """
     load_dotenv()
     db_url = os.getenv("DATABASE_URL", None)
     logger.warning(f"using database: {db_url}")
@@ -33,6 +38,12 @@ async def kudoRepo():
 
 @pytest_asyncio.fixture
 async def kudo1(kudoRepo: KudoRepository):
+    """
+    This fixture uses the `kudoRepo` fixture, and inserts an example
+    kudo into the database. (After all tests are done, the kudo is removed).
+    :param kudoRepo:
+    :return:
+    """
     kudo = Kudo(id=uuid4(), purpose="testing", owner_id="s4444")
     existing = await kudoRepo.read(kudo.id)
     if existing is None:
@@ -57,4 +68,9 @@ async def kudo2(kudoRepo: KudoRepository):
 
 @pytest_asyncio.fixture
 async def cli(aiohttp_client):
+    """
+    Spins up aiohttp application, and provides a http client to call it
+    :param aiohttp_client:
+    :return:
+    """
     return await aiohttp_client(await app_factory())
