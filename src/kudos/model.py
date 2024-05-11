@@ -10,3 +10,8 @@ class Kudo(BaseModel):
     @field_serializer("id")
     def serialize_id(self, id: UUID, _info):
         return str(id)
+
+
+class User(BaseModel):
+    id: str
+    name: str
