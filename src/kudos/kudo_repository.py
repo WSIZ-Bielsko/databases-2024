@@ -38,7 +38,8 @@ class KudoRepository:
                   VALUES ($1, $2, $3)
                   RETURNING *
               """
-            row = await conn.fetchrow(query, kudo.id, kudo.purpose, kudo.owner_id)
+            row = await conn.fetchrow(query, kudo.id,
+                                      kudo.purpose, kudo.owner_id)
             return Kudo(**row)
 
     async def read(self, kudo_id: UUID) -> Kudo | None:

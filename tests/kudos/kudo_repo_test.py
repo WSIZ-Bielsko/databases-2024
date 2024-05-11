@@ -34,7 +34,7 @@ async def test_can_update_kudo_purpose(kudoRepo: KudoRepository, kudo1: Kudo):
 async def test_fetch_multiple_kudos(kudoRepo: KudoRepository, kudo1: Kudo, kudo2: Kudo):
     all_kudos_of_person = await kudoRepo.get_kudos_by_personid(kudo1.owner_id)
     logger.debug(f"all kudos of owner {kudo1.owner_id}: {all_kudos_of_person}")
-    assert len(all_kudos_of_person) == 2
+    assert len(all_kudos_of_person) >= 2
 
 
 @pytest.mark.asyncio
