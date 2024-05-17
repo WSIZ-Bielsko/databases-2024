@@ -5,6 +5,7 @@ from src.full_text.bookrepo import BookLineRepository
 from src.full_text.common import connect_db
 from src.full_text.model import BookLine
 
+# Books from: https://www.gutenberg.org/browse/scores/top
 
 def read_book(file_name: str, book_id: UUID | None = None) -> list[BookLine]:
     if not book_id:
@@ -24,7 +25,7 @@ async def main():
     # x = await repo.create(line)
     # print(x)
     # lines = read_book('books/frankenstein.txt')
-    lines = read_book('books/romeo_juliet.txt')
+    lines = read_book('books/odyssey_homer.txt')
 
     await repo.create_multiple(lines)
 

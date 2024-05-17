@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import asyncpg
+from loguru import logger
 
 from src.full_text.model import BookLine
 
@@ -55,11 +56,30 @@ class BookLineRepository:
 
     # --------------
 
-    async def search_primitive_containing(self, book_id: UUID, words: list[str]):
-        pass
+    async def search_primitive_containing(self, book_id: UUID, words: list[str]) -> list[BookLine]:
+        async with self.pool.acquire() as conn:
+            linked_words = ' || '.join(words)
+            logger.warning(f'`{linked_words}`')
+            # todo: won't work if >1 words present....
+            records = await conn.fetch(
+                """SELECT * FROM booklines
+                   WHERE body LIKE '%' || $1 || '%'""",
+                linked_words,
+            )
+            return [BookLine(**r) for r in records]
 
-    async def search_ts_containing(self, book_id: UUID, words: list[str]):
-        pass
+    async def search_ts_containing(self, book_id: UUID, words: list[str]) -> list[BookLine]:
+        async with self.pool.acquire() as conn:
+            query = """
+            SELECT *
+            FROM booklines
+            WHERE to_tsvector('english', body) @@ to_tsquery($1);
+            """
+            linked_words = ' & '.join(words)
+            logger.warning(f'`{linked_words}`')
+
+            records = await conn.fetch(query, linked_words,)
+            return [BookLine(**r) for r in records]
 
     async def create_multiple(self, book_lines: list[BookLine]):
         query = '''
@@ -71,5 +91,3 @@ class BookLineRepository:
         async with self.pool.acquire() as conn:
             await conn.executemany(query, data)
             await conn.close()
-
-
