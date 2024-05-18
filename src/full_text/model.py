@@ -9,3 +9,6 @@ class BookLine(BaseModel):
     body: str
 
 
+class SimilarityResult(BaseModel):
+    bookline: BookLine
+    similarity: float

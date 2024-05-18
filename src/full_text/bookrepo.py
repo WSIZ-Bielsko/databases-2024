@@ -3,7 +3,7 @@ from uuid import UUID
 import asyncpg
 from loguru import logger
 
-from src.full_text.model import BookLine
+from src.full_text.model import BookLine, SimilarityResult
 
 
 class BookLineRepository:
@@ -80,6 +80,21 @@ class BookLineRepository:
 
             records = await conn.fetch(query, linked_words,)
             return [BookLine(**r) for r in records]
+
+    async def search_body_similar(self, book_id: UUID, line: str) -> list[SimilarityResult]:
+        """
+        Finds all booklines which are similar to `line`.
+        :param book_id:
+        :param line:
+        :return:
+        """
+        async with self.pool.acquire() as conn:
+            query = """
+            select *, similarity(body, $1) as sim from booklines where body % $1 order by sim desc;
+            """
+            records = await conn.fetch(query, line)
+            return [SimilarityResult(bookline=BookLine(**r), similarity=r['sim']) for r in records]
+
 
     async def create_multiple(self, book_lines: list[BookLine]):
         query = '''
