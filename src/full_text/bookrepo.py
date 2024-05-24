@@ -69,6 +69,14 @@ class BookLineRepository:
             return [BookLine(**r) for r in records]
 
     async def search_ts_containing(self, book_id: UUID, words: list[str]) -> list[BookLine]:
+        """
+        Searches all booklines on the database for lines which contain
+        _all_ the words present in `words` (allowing slight modifications of these),
+        in any order.
+        :param book_id:
+        :param words:
+        :return:
+        """
         async with self.pool.acquire() as conn:
             query = """
             SELECT *
