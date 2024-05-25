@@ -104,6 +104,22 @@ class BookLineRepository:
             return [SimilarityResult(bookline=BookLine(**r), similarity=r['sim']) for r in records]
 
 
+    async def search_city_similar(self, city: str) -> list[dict]:
+        """
+        Finds all booklines which are similar to `line`.
+        :param book_id:
+        :param line:
+        :return:
+        """
+        async with self.pool.acquire() as conn:
+            query = """
+            select *, similarity(city_ascii, $1) as sim from cities where city_ascii % $1 order by sim desc;
+            """
+            records = await conn.fetch(query, city)
+            return [r for r in records]
+
+
+
     async def create_multiple(self, book_lines: list[BookLine]):
         query = '''
                 INSERT INTO booklines (line_number, book_id, body)

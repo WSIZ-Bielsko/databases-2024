@@ -1,3 +1,4 @@
+import os
 from asyncio import run
 from uuid import UUID
 
@@ -20,13 +21,14 @@ async def main():
         if len(words) == 1 and words[0]=='':
             break
 
-        lines = await repo.search_ts_containing(
-            book_id=UUID('9434ff35-e94b-49c8-b16f-811c09901935'), words=words)
+        # lines = await repo.search_ts_containing(
+        #     book_id=UUID('9434ff35-e94b-49c8-b16f-811c09901935'), words=words)
         # print(lines)
 
         # logger.info('Similarity search')
         # lines = await repo.search_body_similar(UUID('9434ff35-e94b-49c8-b16f-811c09901935'),
-        #                                        line='sword')
+        #                                        line=words[0])
+        lines = await repo.search_city_similar(city=words[0])
         print('wynik wyszukiwania:')
         for ln in lines:
             print(ln)
