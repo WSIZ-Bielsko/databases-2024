@@ -40,6 +40,7 @@ class Volume(BaseModel):
 
 
 class Log(BaseModel):
+    id: UUID
     job_id: UUID
     timestamp: datetime
     stream: str  # stdout or stderr
@@ -61,6 +62,7 @@ class Node(BaseModel):
 
 class NodeState(BaseModel):
     id: UUID
+    node_id: UUID
     reported_at: datetime
     used_cpu: float
     used_ram: float
