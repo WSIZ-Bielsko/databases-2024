@@ -2,16 +2,14 @@ import datetime
 from random import randint
 from uuid import uuid4
 
+from src.remote_tasks.common import ts
+
 
 def fooo():
     print(datetime.datetime.now().timestamp())
     z = [datetime.datetime.now().timestamp() for _ in range(100)]
     for e in z:
         print(e)
-
-
-def ts():
-    return datetime.datetime.now().timestamp()
 
 
 if __name__ == '__main__':
