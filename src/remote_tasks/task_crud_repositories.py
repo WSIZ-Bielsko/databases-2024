@@ -1,21 +1,34 @@
 from loguru import logger
 
-from src.remote_tasks.model import JobRequest, User
+from src.remote_tasks.model import JobRequest, User, Volume, VolumeClaim, Node, NodeState
 
 """
 preplexity.ai prompt
 
-Write a class KudoRepository with methods for CRUD operations using asyncpg
+Write a class EntityRepository with methods for CRUD operations using asyncpg
 for the following pydantic data class:
 
-class Kudo(BaseModel):
-    id: UUID
-    purpose: str  # id_przedmiotu lub inny
-    owner_id: str  # album w WD
 
-All the method corresponding to Read operation should return instance of
-Kudo or None.
-Assume connection pool is assigned in constructor off KudoRepository
+class Node(BaseModel):
+    id: UUID
+    name: str
+    max_cpu: float
+    max_ram: float
+
+Apart from the method corresponding to delete operation, all other ms should return instance or instances of the dataclass or None.
+Assume connection pool is assigned in constructor of EntityRepository.
+
+In the result, replace "Optional" by " | None" python construct.  
+
+Create instances of the dataclass by (**result) code. 
+
+Use `select *` in list and get methods. 
+
+Use modern python syntax (python >= 3.11), don't use the typing package. 
+
+In update method use "returning *" in sql. 
+
+Use singular for table name in sql. 
 """
 import asyncpg
 from typing import Optional
@@ -185,3 +198,191 @@ class TaskCrudRepository:
                     user_id
                 )
                 return bool(row)
+
+    # volumes
+
+    async def create_volume(self, volume: Volume) -> Volume | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            INSERT INTO volume (id, name) 
+            VALUES ($1, $2) 
+            RETURNING id, name
+            """
+            result = await connection.fetchrow(query, volume.id, volume.name)
+            if result:
+                return Volume(**result)
+            return None
+
+    async def get_volume(self, volume_id: UUID) -> Volume | None:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM volume WHERE id = $1"
+            result = await connection.fetchrow(query, volume_id)
+            if result:
+                return Volume(**result)
+            return None
+
+    async def update_volume(self, volume: Volume) -> Volume | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            UPDATE volume
+            SET name = $2 
+            WHERE id = $1 
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, volume.id, volume.name)
+            if result:
+                return Volume(**result)
+            return None
+
+    async def delete_volume(self, volume_id: UUID) -> bool:
+        async with self.pool.acquire() as connection:
+            query = "DELETE FROM volume WHERE id = $1"
+            result = await connection.execute(query, volume_id)
+            return result == "DELETE 1"
+
+    async def list_volumes(self) -> list[Volume]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM volume"
+            results = await connection.fetch(query)
+            return [Volume(**result) for result in results]
+
+    # volume claims
+
+    async def create_volume_claim(self, volume_claim: VolumeClaim) -> VolumeClaim | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            INSERT INTO volumeclaim (id, volume_id, job_request_id, mount_type)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id, volume_claim.job_request_id, volume_claim.mount_type)
+            if result:
+                return VolumeClaim(**result)
+            return None
+
+    async def get_volume_claim(self, volume_claim_id: UUID) -> VolumeClaim | None:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM volumeclaim WHERE id = $1"
+            result = await connection.fetchrow(query, volume_claim_id)
+            if result:
+                return VolumeClaim(**result)
+            return None
+
+    async def update_volume_claim(self, volume_claim: VolumeClaim) -> VolumeClaim | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            UPDATE volumeclaim
+            SET volume_id = $2, job_request_id = $3, mount_type = $4
+            WHERE id = $1
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id, volume_claim.job_request_id, volume_claim.mount_type)
+            if result:
+                return VolumeClaim(**result)
+            return None
+
+    async def delete_volume_claim(self, volume_claim_id: UUID) -> bool:
+        async with self.pool.acquire() as connection:
+            query = "DELETE FROM volumeclaim WHERE id = $1"
+            result = await connection.execute(query, volume_claim_id)
+            return result == "DELETE 1"
+
+    async def list_volume_claims(self) -> list[VolumeClaim]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM volumeclaim"
+            results = await connection.fetch(query)
+            return [VolumeClaim(**result) for result in results]
+
+    # node
+
+    async def create_node(self, node: Node) -> Node | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            INSERT INTO node (id, name, max_cpu, max_ram)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, node.id, node.name, node.max_cpu, node.max_ram)
+            if result:
+                return Node(**result)
+            return None
+
+    async def get_node(self, node_id: UUID) -> Node | None:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM node WHERE id = $1"
+            result = await connection.fetchrow(query, node_id)
+            if result:
+                return Node(**result)
+            return None
+
+    async def update_node(self, node: Node) -> Node | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            UPDATE node
+            SET name = $2, max_cpu = $3, max_ram = $4
+            WHERE id = $1
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, node.id, node.name, node.max_cpu, node.max_ram)
+            if result:
+                return Node(**result)
+            return None
+
+    async def delete_node(self, node_id: UUID) -> bool:
+        async with self.pool.acquire() as connection:
+            query = "DELETE FROM node WHERE id = $1"
+            result = await connection.execute(query, node_id)
+            return result == "DELETE 1"
+
+    async def list_nodes(self) -> list[Node]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM node"
+            results = await connection.fetch(query)
+            return [Node(**result) for result in results]
+
+    # node state
+
+    async def create_node_state(self, node_state: NodeState) -> NodeState | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            INSERT INTO node_state (id, node_id, reported_at, used_cpu, used_ram)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at, node_state.used_cpu, node_state.used_ram)
+            if result:
+                return NodeState(**result)
+            return None
+
+    async def get_node_state(self, node_state_id: UUID) -> NodeState | None:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM node_state WHERE id = $1"
+            result = await connection.fetchrow(query, node_state_id)
+            if result:
+                return NodeState(**result)
+            return None
+
+    async def update_node_state(self, node_state: NodeState) -> NodeState | None:
+        async with self.pool.acquire() as connection:
+            query = """
+            UPDATE node_state
+            SET node_id = $2, reported_at = $3, used_cpu = $4, used_ram = $5
+            WHERE id = $1
+            RETURNING *
+            """
+            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at, node_state.used_cpu, node_state.used_ram)
+            if result:
+                return NodeState(**result)
+            return None
+
+    async def delete_node_state(self, node_state_id: UUID) -> bool:
+        async with self.pool.acquire() as connection:
+            query = "DELETE FROM node_state WHERE id = $1"
+            result = await connection.execute(query, node_state_id)
+            return result == "DELETE 1"
+
+    async def list_node_states(self) -> list[NodeState]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM node_state"
+            results = await connection.fetch(query)
+            return [NodeState(**result) for result in results]
