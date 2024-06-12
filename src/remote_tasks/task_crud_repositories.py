@@ -1,6 +1,6 @@
 from loguru import logger
 
-from src.remote_tasks.model import JobRequest, User, Volume, VolumeClaim, Node, NodeState, Job
+from src.remote_tasks.model import JobRequest, User, Volume, VolumeClaim, Node, NodeState, Job, Log
 
 """
 preplexity.ai prompt
@@ -9,13 +9,13 @@ Write a class EntityRepository with methods for CRUD operations using asyncpg
 for the following pydantic data class:
 
 
-class Job(BaseModel):
+class Log(BaseModel):
     id: UUID
-    request_id: UUID
-    node_id: int
-    started_at: datetime
-    canceled_at: datetime | None
-    finished_at: datetime | None
+    job_id: UUID
+    timestamp: datetime
+    stream: str  # stdout or stderr
+    level: str
+    message: str
 
 Apart from the method corresponding to delete operation, all other ms should return 
 instance or instances of the dataclass or None.
@@ -33,6 +33,8 @@ Use modern python syntax (python >= 3.11), don't use the typing package.
 In update method use "returning *" in sql. 
 
 Use singular for table name in sql. 
+
+The methods should have a suffix equal to the dataclass name. 
 """
 import asyncpg
 from uuid import UUID
@@ -474,6 +476,50 @@ class TaskCrudRepository:
             query = "SELECT * FROM job"
             results = await connection.fetch(query)
             return [Job(**result) for result in results]
+
+    # log
+
+    async def create_log(self, log: Log) -> Log | None:
+        async with self.pool.acquire() as connection:
+            result = await connection.fetchrow(
+                """
+                INSERT INTO log (id, job_id, logged_at, stream, level, message)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                log.id, log.job_id, log.logged_at, log.stream, log.level, log.message
+            )
+            return Log(**result) if result else None
+
+    async def get_log(self, log_id: UUID) -> Log | None:
+        async with self.pool.acquire() as connection:
+            result = await connection.fetchrow(
+                "SELECT * FROM Log WHERE id = $1", log_id
+            )
+            return Log(**result) if result else None
+
+    async def list_log(self) -> list[Log]:
+        # todo: deprecated; create more specific listing method
+        async with self.pool.acquire() as connection:
+            results = await connection.fetch("SELECT * FROM Log")
+            return [Log(**result) for result in results]
+
+    async def update_log(self, log: Log) -> Log | None:
+        async with self.pool.acquire() as connection:
+            result = await connection.fetchrow(
+                """
+                UPDATE Log
+                SET job_id = $2, logged_at = $3, stream = $4, level = $5, message = $6
+                WHERE id = $1
+                RETURNING *
+                """,
+                log.id, log.job_id, log.logged_at, log.stream, log.level, log.message
+            )
+            return Log(**result) if result else None
+
+    async def delete_log(self, log_id: UUID) -> None:
+        async with self.pool.acquire() as connection:
+            await connection.execute("DELETE FROM Log WHERE id = $1", log_id)
 
     # misc
 

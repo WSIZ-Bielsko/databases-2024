@@ -43,7 +43,7 @@ class Volume(BaseModel):
 class Log(BaseModel):
     id: UUID
     job_id: UUID
-    timestamp: datetime
+    logged_at: datetime
     stream: str  # stdout or stderr
     level: str
     message: str
