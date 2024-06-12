@@ -425,6 +425,23 @@ class TaskCrudRepository:
                 return Job(**result)
             return None
 
+    async def create_multiple_jobs(self, jobs: list[Job]):
+        async with self.pool.acquire() as conn:
+            logger.info(f'Creating {len(jobs)} jobs')
+            query = """
+                INSERT INTO job (
+                    id, request_id, node_id, started_at, canceled_at, finished_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """
+            data = [(
+                job.id, job.request_id, job.node_id, job.started_at,
+                job.canceled_at, job.finished_at
+            ) for job in jobs]
+
+            await conn.executemany(query, data)
+            logger.info(f'Creating {len(jobs)} jobs complete')
+
     async def get_job(self, job_id: UUID) -> Job | None:
         async with self.pool.acquire() as connection:
             query = "SELECT * FROM job WHERE id = $1"
