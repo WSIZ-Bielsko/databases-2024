@@ -35,7 +35,6 @@ In update method use "returning *" in sql.
 Use singular for table name in sql. 
 """
 import asyncpg
-from typing import Optional
 from uuid import UUID
 
 
@@ -168,7 +167,7 @@ class TaskCrudRepository:
             await conn.executemany(query, data)
             logger.info(f'Creating {len(users)} users complete')
 
-    async def read_user(self, user_id: UUID) -> Optional[User]:
+    async def read_user(self, user_id: UUID) -> User | None:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -177,7 +176,7 @@ class TaskCrudRepository:
                 user_id
             )
             if row:
-                return User.parse_obj(row)
+                return User(**row)
             return None
 
     async def read_all_users(self) -> list[User]:
