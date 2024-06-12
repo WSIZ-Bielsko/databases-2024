@@ -1,6 +1,6 @@
 from loguru import logger
 
-from src.remote_tasks.model import JobRequest, User, Volume, VolumeClaim, Node, NodeState
+from src.remote_tasks.model import JobRequest, User, Volume, VolumeClaim, Node, NodeState, Job
 
 """
 preplexity.ai prompt
@@ -9,13 +9,17 @@ Write a class EntityRepository with methods for CRUD operations using asyncpg
 for the following pydantic data class:
 
 
-class Node(BaseModel):
+class Job(BaseModel):
     id: UUID
-    name: str
-    max_cpu: float
-    max_ram: float
+    request_id: UUID
+    node_id: int
+    started_at: datetime
+    canceled_at: datetime | None
+    finished_at: datetime | None
 
-Apart from the method corresponding to delete operation, all other ms should return instance or instances of the dataclass or None.
+Apart from the method corresponding to delete operation, all other ms should return 
+instance or instances of the dataclass or None.
+
 Assume connection pool is assigned in constructor of EntityRepository.
 
 In the result, replace "Optional" by " | None" python construct.  
@@ -46,16 +50,17 @@ class TaskCrudRepository:
             async with conn.transaction():
                 row = await conn.fetchrow(
                     """
-                    INSERT INTO "JobRequest" (
+                    INSERT INTO JobRequest (
                         id, repo_url, commit, image_tag, entry_point_file,
-                        env_file_content, cpu, ram_mb, priority, user_id, submitted_at
+                        env_file_content, cpu, ram_mb, priority, user_id, submitted_at, cancelled_at
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                     RETURNING *
                     """,
                     job_request.id, job_request.repo_url, job_request.commit, job_request.image_tag,
                     job_request.entry_point_file, job_request.env_file_content, job_request.cpu,
-                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at
+                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at,
+                    job_request.cancelled_at
                 )
                 return JobRequest(**row)
 
@@ -65,14 +70,14 @@ class TaskCrudRepository:
             query = """
                 INSERT INTO JobRequest (
                     id, repo_url, commit, image_tag, entry_point_file,
-                    env_file_content, cpu, ram_mb, priority, user_id, submitted_at
+                    env_file_content, cpu, ram_mb, priority, user_id, submitted_at, cancelled_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 """
             data = [(
                 r.id, r.repo_url, r.commit, r.image_tag, r.entry_point_file,
                 r.env_file_content, r.cpu, r.ram_mb, r.priority, r.user_id,
-                r.submitted_at
+                r.submitted_at, r.cancelled_at
             ) for r in job_reqs]
 
             await conn.executemany(query, data)
@@ -97,9 +102,9 @@ class TaskCrudRepository:
                 SELECT * FROM "JobRequest"
                 """
             )
-            return [JobRequest.parse_obj(row) for row in rows]
+            return [JobRequest(**row) for row in rows]
 
-    async def update_task(self, job_request: JobRequest) -> Optional[JobRequest]:
+    async def update_task(self, job_request: JobRequest) -> JobRequest | None:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
@@ -107,16 +112,17 @@ class TaskCrudRepository:
                     UPDATE JobRequest
                     SET repo_url = $2, commit = $3, image_tag = $4, entry_point_file = $5,
                         env_file_content = $6, cpu = $7, ram_mb = $8, priority = $9,
-                        user_id = $10, submitted_at = $11
+                        user_id = $10, submitted_at = $11, cancelled_at = $12
                     WHERE id = $1
                     RETURNING *
                     """,
                     job_request.id, job_request.repo_url, job_request.commit, job_request.image_tag,
                     job_request.entry_point_file, job_request.env_file_content, job_request.cpu,
-                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at
+                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at,
+                    job_request.cancelled_at
                 )
                 if row:
-                    return JobRequest.parse_obj(row)
+                    return JobRequest(**row)
                 return None
 
     async def delete_task(self, job_request_id: UUID) -> bool:
@@ -148,6 +154,19 @@ class TaskCrudRepository:
                 u = User(**row)
                 logger.info(f'Created user {u}')
                 return u
+
+    async def create_multiple_users(self, users: list[User]):
+        async with self.pool.acquire() as conn:
+            logger.info(f'Creating {len(users)} users')
+            query = """
+                    INSERT INTO users (
+                        id, name
+                    )
+                    VALUES ($1, $2)
+                    """
+            data = [(user.id, user.name) for user in users]
+            await conn.executemany(query, data)
+            logger.info(f'Creating {len(users)} users complete')
 
     async def read_user(self, user_id: UUID) -> Optional[User]:
         async with self.pool.acquire() as conn:
@@ -255,7 +274,8 @@ class TaskCrudRepository:
             VALUES ($1, $2, $3, $4)
             RETURNING *
             """
-            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id, volume_claim.job_request_id, volume_claim.mount_type)
+            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id,
+                                               volume_claim.job_request_id, volume_claim.mount_type)
             if result:
                 return VolumeClaim(**result)
             return None
@@ -276,7 +296,8 @@ class TaskCrudRepository:
             WHERE id = $1
             RETURNING *
             """
-            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id, volume_claim.job_request_id, volume_claim.mount_type)
+            result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id,
+                                               volume_claim.job_request_id, volume_claim.mount_type)
             if result:
                 return VolumeClaim(**result)
             return None
@@ -349,7 +370,8 @@ class TaskCrudRepository:
             VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             """
-            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at, node_state.used_cpu, node_state.used_ram)
+            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at,
+                                               node_state.used_cpu, node_state.used_ram)
             if result:
                 return NodeState(**result)
             return None
@@ -370,7 +392,8 @@ class TaskCrudRepository:
             WHERE id = $1
             RETURNING *
             """
-            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at, node_state.used_cpu, node_state.used_ram)
+            result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at,
+                                               node_state.used_cpu, node_state.used_ram)
             if result:
                 return NodeState(**result)
             return None
@@ -386,3 +409,64 @@ class TaskCrudRepository:
             query = "SELECT * FROM node_state"
             results = await connection.fetch(query)
             return [NodeState(**result) for result in results]
+
+    # job
+
+    async def create_job(self, job: Job) -> Job | None:
+        async with self.pool.acquire() as connection:
+            query = """
+               INSERT INTO job (id, request_id, node_id, started_at, canceled_at, finished_at)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING *
+               """
+            result = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
+                                               job.canceled_at, job.finished_at)
+            if result:
+                return Job(**result)
+            return None
+
+    async def get_job(self, job_id: UUID) -> Job | None:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM job WHERE id = $1"
+            result = await connection.fetchrow(query, job_id)
+            if result:
+                return Job(**result)
+            return None
+
+    async def update_job(self, job: Job) -> Job | None:
+        async with self.pool.acquire() as connection:
+            query = """
+               UPDATE job
+               SET request_id = $2, node_id = $3, started_at = $4, canceled_at = $5, finished_at = $6
+               WHERE id = $1
+               RETURNING *
+               """
+            result = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
+                                               job.canceled_at, job.finished_at)
+            if result:
+                return Job(**result)
+            return None
+
+    async def delete_job(self, job_id: UUID) -> bool:
+        async with self.pool.acquire() as connection:
+            query = "DELETE FROM job WHERE id = $1"
+            result = await connection.execute(query, job_id)
+            return result == "DELETE 1"
+
+    async def list_jobs(self) -> list[Job]:
+        async with self.pool.acquire() as connection:
+            query = "SELECT * FROM job"
+            results = await connection.fetch(query)
+            return [Job(**result) for result in results]
+
+    # misc
+
+    async def get_recent_requests_of_users(self, user_ids: list[UUID], days: int) -> list[JobRequest]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                select * from jobrequest 
+                where submitted_at > now() - ($2 || ' days')::INTERVAL AND
+                user_id = ANY ($1::uuid[]) 
+                """, user_ids, str(days))
+            return [JobRequest(**row) for row in rows]

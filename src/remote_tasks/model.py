@@ -16,6 +16,7 @@ class JobRequest(BaseModel):
     priority: int
     user_id: UUID
     submitted_at: datetime | None
+    cancelled_at: datetime | None
 
 
 class VolumeClaim(BaseModel):
@@ -28,7 +29,7 @@ class VolumeClaim(BaseModel):
 class Job(BaseModel):
     id: UUID
     request_id: UUID
-    node_id: int
+    node_id: UUID
     started_at: datetime
     canceled_at: datetime | None
     finished_at: datetime | None
