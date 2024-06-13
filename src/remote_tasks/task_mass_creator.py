@@ -1,12 +1,12 @@
-import datetime
-from asyncio import run
-from random import randint, choice
+from datetime import datetime
+from asyncio import run, gather
+from random import randint, choice, sample
 from uuid import uuid4, UUID
 
 from loguru import logger
 
 from src.remote_tasks.common import connect_db
-from src.remote_tasks.model import User, JobRequest, Volume, VolumeClaim, Node, NodeState
+from src.remote_tasks.model import User, JobRequest, Volume, VolumeClaim, Node, NodeState, Job
 from src.remote_tasks.task_crud_repositories import TaskCrudRepository
 
 
@@ -45,12 +45,43 @@ async def create_job_requests(users: list[User], n_requests: int, repo: TaskCrud
         await repo.create_multiple_task(job_reqs)
 
 
+async def schedule_jobs(n_jobs: int, repo: TaskCrudRepository):
+    async with repo.pool.acquire() as conn:
+        async with conn.transaction():
+            logger.debug('transaction begin')
+            nodes = await repo.list_nodes()
+            jrs = await repo.list_unscheduled_job_requests(limit=n_jobs)
+            for jr in jrs:
+                node = choice(nodes)
+                job = Job(id=uuid4(), request_id=jr.id,
+                          node_id=node.id,
+                          started_at=datetime.now(),
+                          canceled_at=None, finished_at=None)
+                logger.info(f'job request {jr.id} to be scheduled for node {node.id}')
+                jr.started_at = datetime.now()
+                await repo.create_job(job)
+                await repo.update_task(jr)
+            logger.debug('transaction closed')
+        logger.info(f'job scheduling for {n_jobs} complete')
+
+
+async def complete_random_jobs(n_jobs: int, repo: TaskCrudRepository):
+    running_jobs = await repo.list_running_jobs(n_jobs)
+    for j in sample(running_jobs, k=n_jobs):
+        j.finished_at = datetime.now()
+        await repo.update_job(j)
+        logger.info(f'job {j.id} finished successfully')
+
+
 async def main():
     pool = await connect_db()
     repo = TaskCrudRepository(pool)
     # await create_users(n_users=30, repo=repo)
-    users = await repo.read_all_users()
-    await create_job_requests(users=users, n_requests=1 * 10 ** 5, repo=repo)
+    # users = await repo.read_all_users()
+    # await create_job_requests(users=users, n_requests=1 * 10 ** 5, repo=repo)
+
+    # await schedule_jobs(n_jobs=1000, repo=repo)
+    await complete_random_jobs(n_jobs=20, repo=repo)
 
     # await create_nodes(n_nodes=8, repo=repo)
 

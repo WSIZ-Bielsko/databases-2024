@@ -428,6 +428,7 @@ class TaskCrudRepository:
             result = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
                                                job.canceled_at, job.finished_at)
             if result:
+                logger.info(f'job {job.id} created')
                 return Job(**result)
             return None
 
@@ -537,3 +538,28 @@ class TaskCrudRepository:
                 user_id = ANY ($1::uuid[]) 
                 """, user_ids, str(days))
             return [JobRequest(**row) for row in rows]
+
+    async def list_unscheduled_job_requests(self, limit: int) -> list[JobRequest]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                select  *
+                from jobrequest 
+                where started_at is null
+                order by priority desc, submitted_at
+                limit $1;
+                """, limit)
+            return [JobRequest(**row) for row in rows]
+
+    async def list_running_jobs(self, limit) -> list[Job]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                    select *
+                    from job
+                    where finished_at is NULL
+                      and canceled_at is NULL
+                    order by started_at
+                    limit $1;
+                """, limit)
+            return [Job(**row) for row in rows]
