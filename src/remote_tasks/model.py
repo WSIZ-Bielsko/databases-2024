@@ -16,6 +16,7 @@ class JobRequest(BaseModel):
     priority: int
     user_id: UUID
     submitted_at: datetime | None
+    started_at: datetime | None
     cancelled_at: datetime | None
 
 

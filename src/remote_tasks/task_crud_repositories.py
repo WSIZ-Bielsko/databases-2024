@@ -53,14 +53,16 @@ class TaskCrudRepository:
                     """
                     INSERT INTO JobRequest (
                         id, repo_url, commit, image_tag, entry_point_file,
-                        env_file_content, cpu, ram_mb, priority, user_id, submitted_at, cancelled_at
+                        env_file_content, cpu, ram_mb, priority, user_id, submitted_at, started_at, cancelled_at
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING *
                     """,
                     job_request.id, job_request.repo_url, job_request.commit, job_request.image_tag,
                     job_request.entry_point_file, job_request.env_file_content, job_request.cpu,
-                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at,
+                    job_request.ram_mb, job_request.priority, job_request.user_id,
+                    job_request.submitted_at,
+                    job_request.started_at,
                     job_request.cancelled_at
                 )
                 return JobRequest(**row)
@@ -71,14 +73,14 @@ class TaskCrudRepository:
             query = """
                 INSERT INTO JobRequest (
                     id, repo_url, commit, image_tag, entry_point_file,
-                    env_file_content, cpu, ram_mb, priority, user_id, submitted_at, cancelled_at
+                    env_file_content, cpu, ram_mb, priority, user_id, submitted_at, started_at, cancelled_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 """
             data = [(
                 r.id, r.repo_url, r.commit, r.image_tag, r.entry_point_file,
                 r.env_file_content, r.cpu, r.ram_mb, r.priority, r.user_id,
-                r.submitted_at, r.cancelled_at
+                r.submitted_at, r.started_at, r.cancelled_at
             ) for r in job_reqs]
 
             await conn.executemany(query, data)
@@ -113,13 +115,15 @@ class TaskCrudRepository:
                     UPDATE JobRequest
                     SET repo_url = $2, commit = $3, image_tag = $4, entry_point_file = $5,
                         env_file_content = $6, cpu = $7, ram_mb = $8, priority = $9,
-                        user_id = $10, submitted_at = $11, cancelled_at = $12
+                        user_id = $10, submitted_at = $11, started_at=$12, cancelled_at = $13
                     WHERE id = $1
                     RETURNING *
                     """,
                     job_request.id, job_request.repo_url, job_request.commit, job_request.image_tag,
                     job_request.entry_point_file, job_request.env_file_content, job_request.cpu,
-                    job_request.ram_mb, job_request.priority, job_request.user_id, job_request.submitted_at,
+                    job_request.ram_mb, job_request.priority, job_request.user_id,
+                    job_request.submitted_at,
+                    job_request.started_at,
                     job_request.cancelled_at
                 )
                 if row:
@@ -326,6 +330,7 @@ class TaskCrudRepository:
             """
             result = await connection.fetchrow(query, node.id, node.name, node.max_cpu, node.max_ram)
             if result:
+                logger.info(f'node {node.name} created')
                 return Node(**result)
             return None
 

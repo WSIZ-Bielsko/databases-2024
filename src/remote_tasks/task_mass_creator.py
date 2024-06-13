@@ -16,6 +16,13 @@ async def create_users(n_users: int, repo: TaskCrudRepository):
         await repo.create_user(u)
 
 
+async def create_nodes(n_nodes: int, repo: TaskCrudRepository):
+    for _ in range(n_nodes):
+        n = Node(id=uuid4(), name=f'node{randint(1, 10 ** 6)}',
+                 max_cpu=4 * randint(1, 16), max_ram=16 * randint(1, 16))
+        await repo.create_node(n)
+
+
 async def create_job_requests(users: list[User], n_requests: int, repo: TaskCrudRepository):
     user_ids = [u.id for u in users]
     BATCH_SIZE = 10 ** 4
@@ -33,7 +40,7 @@ async def create_job_requests(users: list[User], n_requests: int, repo: TaskCrud
                                ram_mb=randint(1, 16),
                                priority=randint(1, 5),
                                user_id=choice(user_ids),
-                               submitted_at=None, cancelled_at=None)
+                               submitted_at=None, started_at=None, cancelled_at=None)
                     for i in range(BATCH_SIZE)]
         await repo.create_multiple_task(job_reqs)
 
@@ -44,6 +51,8 @@ async def main():
     # await create_users(n_users=30, repo=repo)
     users = await repo.read_all_users()
     await create_job_requests(users=users, n_requests=1 * 10 ** 5, repo=repo)
+
+    # await create_nodes(n_nodes=8, repo=repo)
 
     # for i in range(100):
     #     vol = Volume(id=uuid4(), name=f'volume{i}')
@@ -60,20 +69,6 @@ async def main():
     # assert created == saved
     # claims = await repo.list_volume_claims()
     # print(claims)
-
-    # node = Node(id=uuid4(), name='nodeX', max_cpu=32, max_ram=1024)
-    # n = await repo.create_node(node)
-    # print(n)  # UUID('31148731-814f-4e34-98c7-07139f8238c2')
-
-    # nstate = NodeState(id=uuid4(), node_id=UUID('31148731-814f-4e34-98c7-07139f8238c2'),
-    #                    reported_at=datetime.datetime.now(), used_cpu=3.5, used_ram=512)
-    # saved = await repo.create_node_state(nstate)
-    # print(saved)
-
-    # reqs = await repo.get_recent_requests_of_users(
-    #     user_ids=[UUID('947b3582-1147-4347-8038-8f0f86f4fb89'),
-    #               UUID('695c4a66-23b4-414c-a95c-ca9348f7068b')], days=120)
-    # print(reqs)
 
 
 if __name__ == '__main__':
