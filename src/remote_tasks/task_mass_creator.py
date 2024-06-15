@@ -81,8 +81,11 @@ async def main():
     # await create_job_requests(users=users, n_requests=1 * 10 ** 5, repo=repo)
 
     # await schedule_jobs(n_jobs=1000, repo=repo)
-    await complete_random_jobs(n_jobs=20, repo=repo)
+    # await complete_random_jobs(n_jobs=20, repo=repo)
 
+    ids = await repo.retrieve_venerated_job_ids_by_volume_id(UUID('efd2f5e7-5ad8-485c-9180-1a57266ea974'))
+    for i in ids:
+        print(i)
     # await create_nodes(n_nodes=8, repo=repo)
 
     # for i in range(100):

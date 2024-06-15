@@ -563,3 +563,18 @@ class TaskCrudRepository:
                     limit $1;
                 """, limit)
             return [Job(**row) for row in rows]
+
+    async def retrieve_venerated_job_ids_by_volume_id(self, volume_id: UUID) -> list[UUID]:
+        query = """
+        SELECT j.id as job_id
+        FROM job j
+        JOIN jobrequest jr ON j.request_id = jr.id
+        JOIN volumeclaim vc ON jr.id = vc.job_request_id
+        WHERE vc.volume_id = $1
+          AND j.canceled_at IS NULL
+          AND j.finished_at IS NULL
+        """
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, volume_id)
+        return [row['job_id'] for row in rows]

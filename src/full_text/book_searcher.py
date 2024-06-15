@@ -14,7 +14,7 @@ async def main():
 
     while (True):
 
-        logger.info('Full test search:')
+        logger.info('Full text search:')
 
         s = input('podaj szukane słowa>')
         words = s.strip().split(' ')
