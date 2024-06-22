@@ -45,22 +45,39 @@ async def create_job_requests(users: list[User], n_requests: int, repo: TaskCrud
         await repo.create_multiple_task(job_reqs)
 
 
-async def schedule_jobs(n_jobs: int, repo: TaskCrudRepository):
+async def schedule_job(n_jobs: int, repo: TaskCrudRepository):
     async with repo.pool.acquire() as conn:
         async with conn.transaction():
             logger.debug('transaction begin')
             nodes = await repo.list_nodes()
-            jrs = await repo.list_unscheduled_job_requests(limit=n_jobs)
+
+            jrs = await repo.list_unscheduled_job_requests(limit=1)
+            # ↑↑ should take "connection" as parameter -- preserve transaction
+
             for jr in jrs:
                 node = choice(nodes)
+                # todo: can only be placed on node with enough resources
+                # plan this as a series of SQL's
                 job = Job(id=uuid4(), request_id=jr.id,
                           node_id=node.id,
                           started_at=datetime.now(),
-                          canceled_at=None, finished_at=None)
+                          canceled_at=None,
+                          finished_at=None)
                 logger.info(f'job request {jr.id} to be scheduled for node {node.id}')
                 jr.started_at = datetime.now()
-                await repo.create_job(job)
-                await repo.update_task(jr)
+                await repo.create_job(job, conn)  #fixme: 1) save to job table
+
+                # what if node is now fully occupied?
+                await repo.update_task(jr, conn)  #fixme: 2) save to jobrequest table
+                # what if sb. cancelled it befeore it was scheduled
+
+                # fixme add: 3) update node table
+                node.used_cpu -= jr.cpu
+                node.used_ram -= jr.ram_mb
+                await repo.update_node(node, conn)
+
+
+
             logger.debug('transaction closed')
         logger.info(f'job scheduling for {n_jobs} complete')
 
@@ -80,7 +97,7 @@ async def main():
     # users = await repo.read_all_users()
     # await create_job_requests(users=users, n_requests=1 * 10 ** 5, repo=repo)
 
-    # await schedule_jobs(n_jobs=1000, repo=repo)
+    # await schedule_job(n_jobs=1000, repo=repo)
     # await complete_random_jobs(n_jobs=20, repo=repo)
 
     ids = await repo.retrieve_venerated_job_ids_by_volume_id(UUID('efd2f5e7-5ad8-485c-9180-1a57266ea974'))

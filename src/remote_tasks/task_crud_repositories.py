@@ -107,28 +107,39 @@ class TaskCrudRepository:
             )
             return [JobRequest(**row) for row in rows]
 
-    async def update_task(self, job_request: JobRequest) -> JobRequest | None:
-        async with self.pool.acquire() as conn:
-            async with conn.transaction():
-                row = await conn.fetchrow(
-                    """
+    async def update_task(self, job_request: JobRequest, connection=None) -> JobRequest | None:
+        jr = job_request
+        query = """
                     UPDATE JobRequest
                     SET repo_url = $2, commit = $3, image_tag = $4, entry_point_file = $5,
                         env_file_content = $6, cpu = $7, ram_mb = $8, priority = $9,
                         user_id = $10, submitted_at = $11, started_at=$12, cancelled_at = $13
                     WHERE id = $1
                     RETURNING *
-                    """,
-                    job_request.id, job_request.repo_url, job_request.commit, job_request.image_tag,
-                    job_request.entry_point_file, job_request.env_file_content, job_request.cpu,
-                    job_request.ram_mb, job_request.priority, job_request.user_id,
-                    job_request.submitted_at,
-                    job_request.started_at,
-                    job_request.cancelled_at
-                )
-                if row:
-                    return JobRequest(**row)
-                return None
+                    """
+        if connection:
+            res = await connection.fetchrow(query,
+                                            jr.id, jr.repo_url, jr.commit,
+                                            jr.image_tag,
+                                            jr.entry_point_file, jr.env_file_content, jr.cpu,
+                                            jr.ram_mb, jr.priority, jr.user_id,
+                                            jr.submitted_at,
+                                            jr.started_at,
+                                            jr.cancelled_at
+                                            )
+            return JobRequest(**res) if res else None
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(query,
+                                      jr.id, jr.repo_url, jr.commit, jr.image_tag,
+                                      jr.entry_point_file, jr.env_file_content, jr.cpu,
+                                      jr.ram_mb, jr.priority, jr.user_id,
+                                      jr.submitted_at,
+                                      jr.started_at,
+                                      jr.cancelled_at
+                                      )
+            if row:
+                return JobRequest(**row)
+            return None
 
     async def delete_task(self, job_request_id: UUID) -> bool:
         async with self.pool.acquire() as conn:
@@ -164,11 +175,11 @@ class TaskCrudRepository:
         async with self.pool.acquire() as conn:
             logger.info(f'Creating {len(users)} users')
             query = """
-                    INSERT INTO users (
-                        id, name
-                    )
-                    VALUES ($1, $2)
-                    """
+                        INSERT INTO users (
+                            id, name
+                        )
+                        VALUES ($1, $2)
+                        """
             data = [(user.id, user.name) for user in users]
             await conn.executemany(query, data)
             logger.info(f'Creating {len(users)} users complete')
@@ -228,10 +239,10 @@ class TaskCrudRepository:
     async def create_volume(self, volume: Volume) -> Volume | None:
         async with self.pool.acquire() as connection:
             query = """
-            INSERT INTO volume (id, name) 
-            VALUES ($1, $2) 
-            RETURNING id, name
-            """
+                INSERT INTO volume (id, name) 
+                VALUES ($1, $2) 
+                RETURNING id, name
+                """
             result = await connection.fetchrow(query, volume.id, volume.name)
             if result:
                 return Volume(**result)
@@ -248,11 +259,11 @@ class TaskCrudRepository:
     async def update_volume(self, volume: Volume) -> Volume | None:
         async with self.pool.acquire() as connection:
             query = """
-            UPDATE volume
-            SET name = $2 
-            WHERE id = $1 
-            RETURNING *
-            """
+                UPDATE volume
+                SET name = $2 
+                WHERE id = $1 
+                RETURNING *
+                """
             result = await connection.fetchrow(query, volume.id, volume.name)
             if result:
                 return Volume(**result)
@@ -275,10 +286,10 @@ class TaskCrudRepository:
     async def create_volume_claim(self, volume_claim: VolumeClaim) -> VolumeClaim | None:
         async with self.pool.acquire() as connection:
             query = """
-            INSERT INTO volumeclaim (id, volume_id, job_request_id, mount_type)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-            """
+                INSERT INTO volumeclaim (id, volume_id, job_request_id, mount_type)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *
+                """
             result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id,
                                                volume_claim.job_request_id, volume_claim.mount_type)
             if result:
@@ -296,11 +307,11 @@ class TaskCrudRepository:
     async def update_volume_claim(self, volume_claim: VolumeClaim) -> VolumeClaim | None:
         async with self.pool.acquire() as connection:
             query = """
-            UPDATE volumeclaim
-            SET volume_id = $2, job_request_id = $3, mount_type = $4
-            WHERE id = $1
-            RETURNING *
-            """
+                UPDATE volumeclaim
+                SET volume_id = $2, job_request_id = $3, mount_type = $4
+                WHERE id = $1
+                RETURNING *
+                """
             result = await connection.fetchrow(query, volume_claim.id, volume_claim.volume_id,
                                                volume_claim.job_request_id, volume_claim.mount_type)
             if result:
@@ -324,36 +335,48 @@ class TaskCrudRepository:
     async def create_node(self, node: Node) -> Node | None:
         async with self.pool.acquire() as connection:
             query = """
-            INSERT INTO node (id, name, max_cpu, max_ram)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-            """
+                INSERT INTO node (id, name, max_cpu, max_ram)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *
+                """
             result = await connection.fetchrow(query, node.id, node.name, node.max_cpu, node.max_ram)
             if result:
                 logger.info(f'node {node.name} created')
                 return Node(**result)
             return None
 
-    async def get_node(self, node_id: UUID) -> Node | None:
-        async with self.pool.acquire() as connection:
-            query = "SELECT * FROM node WHERE id = $1"
-            result = await connection.fetchrow(query, node_id)
-            if result:
-                return Node(**result)
-            return None
+    async def get_node(self, node_id: UUID, connection=None) -> Node | None:
+        query = "SELECT * FROM node WHERE id = $1"
 
-    async def update_node(self, node: Node) -> Node | None:
-        async with self.pool.acquire() as connection:
-            query = """
-            UPDATE node
-            SET name = $2, max_cpu = $3, max_ram = $4
-            WHERE id = $1
-            RETURNING *
+        # todo: test it -- redone -- added explicit conneciton
+        if connection:
+            result = await connection.fetchrow(query, node_id)
+        else:
+            async with self.pool.acquire() as connection:
+                result = await connection.fetchrow(query, node_id)
+        if result:
+            return Node(**result)
+        return None
+
+    async def update_node(self, node: Node, connection=None) -> Node | None:
+        query = """
+                UPDATE node
+                SET name = $2, max_cpu = $3, max_ram = $4, used_cpu = $5, used_ram = $6
+                WHERE id = $1
+                RETURNING *
             """
-            result = await connection.fetchrow(query, node.id, node.name, node.max_cpu, node.max_ram)
-            if result:
-                return Node(**result)
-            return None
+        if connection:
+            result = await connection.fetchrow(query, node.id, node.name,
+                                               node.max_cpu, node.max_ram,
+                                               node.used_cpu, node.used_ram)
+        else:
+            async with self.pool.acquire() as connection:
+                result = await connection.fetchrow(query, node.id, node.name,
+                                                   node.max_cpu, node.max_ram,
+                                                   node.used_cpu, node.used_ram)
+        if result:
+            return Node(**result)
+        return None
 
     async def delete_node(self, node_id: UUID) -> bool:
         async with self.pool.acquire() as connection:
@@ -361,21 +384,35 @@ class TaskCrudRepository:
             result = await connection.execute(query, node_id)
             return result == "DELETE 1"
 
-    async def list_nodes(self) -> list[Node]:
-        async with self.pool.acquire() as connection:
-            query = "SELECT * FROM node"
+    async def list_nodes(self, connection=None) -> list[Node]:
+        query = "SELECT * FROM node"
+
+        if connection:
             results = await connection.fetch(query)
-            return [Node(**result) for result in results]
+        else:
+            async with self.pool.acquire() as connection:
+                results = await connection.fetch(query)
+        return [Node(**result) for result in results]
+
+
+    async def execute_fetch(self, query, connection, **kwargs):
+        if connection:
+            return await connection.fetch(query, **kwargs)
+        async with self.pool.acquire() as connection:
+            return await connection.fetch(query, **kwargs)
+
+
+
 
     # node state
 
     async def create_node_state(self, node_state: NodeState) -> NodeState | None:
         async with self.pool.acquire() as connection:
             query = """
-            INSERT INTO node_state (id, node_id, reported_at, used_cpu, used_ram)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *
-            """
+                INSERT INTO node_state (id, node_id, reported_at, used_cpu, used_ram)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING *
+                """
             result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at,
                                                node_state.used_cpu, node_state.used_ram)
             if result:
@@ -393,11 +430,11 @@ class TaskCrudRepository:
     async def update_node_state(self, node_state: NodeState) -> NodeState | None:
         async with self.pool.acquire() as connection:
             query = """
-            UPDATE node_state
-            SET node_id = $2, reported_at = $3, used_cpu = $4, used_ram = $5
-            WHERE id = $1
-            RETURNING *
-            """
+                UPDATE node_state
+                SET node_id = $2, reported_at = $3, used_cpu = $4, used_ram = $5
+                WHERE id = $1
+                RETURNING *
+                """
             result = await connection.fetchrow(query, node_state.id, node_state.node_id, node_state.reported_at,
                                                node_state.used_cpu, node_state.used_ram)
             if result:
@@ -418,29 +455,33 @@ class TaskCrudRepository:
 
     # job
 
-    async def create_job(self, job: Job) -> Job | None:
-        async with self.pool.acquire() as connection:
-            query = """
+    async def create_job(self, job: Job, connection=None) -> Job | None:
+        query = """
                INSERT INTO job (id, request_id, node_id, started_at, canceled_at, finished_at)
                VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING *
                """
-            result = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
-                                               job.canceled_at, job.finished_at)
-            if result:
-                logger.info(f'job {job.id} created')
-                return Job(**result)
-            return None
+
+        if connection:
+            res = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
+                                            job.canceled_at, job.canceled_at)
+            return Job(**res) if res else None
+
+        async with self.pool.acquire() as connection:
+            res = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
+                                            job.canceled_at, job.finished_at)
+
+            return Job(**res) if res else None
 
     async def create_multiple_jobs(self, jobs: list[Job]):
         async with self.pool.acquire() as conn:
             logger.info(f'Creating {len(jobs)} jobs')
             query = """
-                INSERT INTO job (
-                    id, request_id, node_id, started_at, canceled_at, finished_at
-                )
-                VALUES ($1, $2, $3, $4, $5, $6)
-                """
+                    INSERT INTO job (
+                        id, request_id, node_id, started_at, canceled_at, finished_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    """
             data = [(
                 job.id, job.request_id, job.node_id, job.started_at,
                 job.canceled_at, job.finished_at
@@ -460,11 +501,11 @@ class TaskCrudRepository:
     async def update_job(self, job: Job) -> Job | None:
         async with self.pool.acquire() as connection:
             query = """
-               UPDATE job
-               SET request_id = $2, node_id = $3, started_at = $4, canceled_at = $5, finished_at = $6
-               WHERE id = $1
-               RETURNING *
-               """
+                   UPDATE job
+                   SET request_id = $2, node_id = $3, started_at = $4, canceled_at = $5, finished_at = $6
+                   WHERE id = $1
+                   RETURNING *
+                   """
             result = await connection.fetchrow(query, job.id, job.request_id, job.node_id, job.started_at,
                                                job.canceled_at, job.finished_at)
             if result:
@@ -566,14 +607,14 @@ class TaskCrudRepository:
 
     async def retrieve_venerated_job_ids_by_volume_id(self, volume_id: UUID) -> list[UUID]:
         query = """
-        SELECT j.id as job_id
-        FROM job j
-        JOIN jobrequest jr ON j.request_id = jr.id
-        JOIN volumeclaim vc ON jr.id = vc.job_request_id
-        WHERE vc.volume_id = $1
-          AND j.canceled_at IS NULL
-          AND j.finished_at IS NULL
-        """
+            SELECT j.id as job_id
+            FROM job j
+            JOIN jobrequest jr ON j.request_id = jr.id
+            JOIN volumeclaim vc ON jr.id = vc.job_request_id
+            WHERE vc.volume_id = $1
+              AND j.canceled_at IS NULL
+              AND j.finished_at IS NULL
+            """
 
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(query, volume_id)

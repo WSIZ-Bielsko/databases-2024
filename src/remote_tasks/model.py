@@ -60,6 +60,8 @@ class Node(BaseModel):
     name: str
     max_cpu: float
     max_ram: float
+    used_cpu: float
+    used_ram: float
 
 
 class NodeState(BaseModel):
