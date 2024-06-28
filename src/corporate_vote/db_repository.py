@@ -1,6 +1,6 @@
 import os
 import secrets
-from asyncio import run
+from asyncio import run, create_task, gather, sleep
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -168,6 +168,7 @@ class DbRepository:
     async def vote(self, token: str, vote_type: str, vote_id: int):
         if vote_type not in ['yes', 'no', 'pass']:
             raise RuntimeError('Vote type must be "yes" or "no" or "pass"')
+        await sleep(0.05)
 
         # todo: transactional
         #    1. get user with given token
@@ -175,8 +176,11 @@ class DbRepository:
         #    3. update results with shares of user
         #    4. update participation for email
 
+        # todo: add parameter "request_id"; catch asyncpg.exceptions.SerializationError
+
         async with self.pool.acquire() as conn:
-            async with conn.transaction():
+            async with conn.transaction(isolation='serializable'):
+                logger.info(f'token {token} inside transaction')
                 query1 = 'SELECT * FROM users WHERE token = $1'
 
                 query2 = ('SELECT COUNT(*) FROM participation '
@@ -195,18 +199,24 @@ class DbRepository:
                 participation_count = await conn.fetchval(query2, vote_id, user.email)
                 if participation_count > 0:
                     raise RuntimeError('User has already participated in the vote')
-
+                logger.info(f'Token {token} ready to vote')
                 await conn.execute(query3, user.shares, vote_id)
+                logger.info(f'Token {token} result updated')
 
                 await conn.execute(query4, vote_id, user.email)
-
-
+                logger.info(f'Token {token} participation marked')
+            logger.info('transaction finished')
 
     """
     Challenges: 
     - do steps 1,2, then pause... redo 1-4 for other call; resume with 3,4
     
     """
+
+
+async def hack_vote(db: DbRepository, token: str):
+    await sleep(0.1)
+    await db.vote(token, 'no', 1)
 
 
 async def main():
@@ -223,6 +233,14 @@ async def main():
     u = await db.get_user_by_token(tkn)
     print(u)
     assert u.email == 'a@a.com'
+
+    tasks = []
+    for i in range(100):
+        tasks.append(create_task(hack_vote(db, tkn)))
+
+    await gather(*tasks)
+
+    # await db.vote(tkn, 'no', 1)
 
     await pool.close()
 
