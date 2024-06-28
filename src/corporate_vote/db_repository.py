@@ -165,16 +165,42 @@ class DbRepository:
             else:
                 return User(**row)
 
-
-
-    async def vote(self, token: str, vote_type: str):
+    async def vote(self, token: str, vote_type: str, vote_id: int):
         if vote_type not in ['yes', 'no', 'pass']:
             raise RuntimeError('Vote type must be "yes" or "no" or "pass"')
+
         # todo: transactional
         #    1. get user with given token
         #    2. check if email already participated
         #    3. update results with shares of user
         #    4. update participation for email
+
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                query1 = 'SELECT * FROM users WHERE token = $1'
+
+                query2 = ('SELECT COUNT(*) FROM participation '
+                          'WHERE vote_id = $1 and email = $2')
+
+                query3 = (f'UPDATE results SET '
+                          f'{vote_type}_count = {vote_type}_count + $1 '
+                          f'where vote_id = $2')
+
+                query4 = 'INSERT INTO participation (vote_id, email) values ($1, $2)'
+
+                # -- let's do it
+                result = await conn.fetchrow(query1, token)
+                user = User(**result)
+
+                participation_count = await conn.fetchval(query2, vote_id, user.email)
+                if participation_count > 0:
+                    raise RuntimeError('User has already participated in the vote')
+
+                await conn.execute(query3, user.shares, vote_id)
+
+                await conn.execute(query4, vote_id, user.email)
+
+
 
     """
     Challenges: 
