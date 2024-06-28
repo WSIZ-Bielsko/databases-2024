@@ -7,7 +7,7 @@ class User(BaseModel):
     id: UUID
     email: str
     password: str
-    token: str
+    token: str | None = None
     shares: int
     active: bool
     is_admin: bool = False
@@ -16,10 +16,12 @@ class User(BaseModel):
 # user logs in, new token created
 
 class Results(BaseModel):
+    vote_id: int
     yes_count: int
     no_count: int
     pass_count: int
 
 
 class Participation(BaseModel):
+    vote_id: int
     email: str

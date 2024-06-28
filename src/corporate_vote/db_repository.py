@@ -151,6 +151,15 @@ class DbRepository:
 
                 return new_token
 
+    async def get_user_by_token(self, token: str) -> User | None:
+        """
+
+        :param token:
+        :return: User who has user.token == token
+        """
+        pass
+
+
     async def vote(self, token: str, vote_type: str):
         if vote_type not in ['yes', 'no', 'pass']:
             raise RuntimeError('Vote type must be "yes" or "no" or "pass"')
@@ -177,6 +186,9 @@ async def main():
     tkn = await db.login('a@a.com', 'kadabra')
 
     print(tkn)
+
+    u = await db.get_user_by_token(tkn)
+    assert u.email == 'a@a.com'
 
     await pool.close()
 
