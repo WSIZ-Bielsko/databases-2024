@@ -157,7 +157,14 @@ class DbRepository:
         :param token:
         :return: User who has user.token == token
         """
-        pass
+        async with self.pool.acquire() as conn:
+            query = "SELECT * FROM users WHERE token = $1"
+            row = await self.pool.fetchrow(query, token)
+            if row is None:
+                return None
+            else:
+                return User(**row)
+
 
 
     async def vote(self, token: str, vote_type: str):
@@ -188,6 +195,7 @@ async def main():
     print(tkn)
 
     u = await db.get_user_by_token(tkn)
+    print(u)
     assert u.email == 'a@a.com'
 
     await pool.close()
