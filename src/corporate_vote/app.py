@@ -3,79 +3,62 @@ import random
 from aiohttp import web
 from loguru import logger
 
+from src.corporate_vote.db_repository import DbRepository, connect_db
+
 tokens_2_shares = dict()
 voted = set()
 result = {'total_yes': 0, 'total_no': 0, 'total_abst': 0}
+state = {}
 
 
-def assign_tokens():
-    random_keys = random.sample(range(1000, 10000), 6)
-
-    # Create the dictionary
-    random_dict = {
-        random_keys[0]: 30,
-        random_keys[1]: 30,
-        random_keys[2]: 25,
-        random_keys[3]: 15
-    }
-    for (k, v) in random_dict.items():
-        print(k, v)
-        tokens_2_shares[str(k)] = v
+def db() -> DbRepository:
+    return state['db']
 
 
-async def handle_reset(request):
+async def handle_create(request):
     logger.info('Vote reset')
-    voted.clear()
-    for k in result.keys():
-        result[k] = 0
+    new_vote = await db().create_new_vote()
     return web.json_response(data={
         "status": "success",
-        "message": "Vote reset",
+        "message": "Vote created",
+        "vote_id": new_vote.vote_id
     })
 
 
 async def handle_result(request):
-    logger.info('Vote results:')
-    logger.info(f'Tokens voted: {len(voted)}')
-    logger.info(f'Results: {result}')
+    vote_id = int(request.query.get('vote_id'))
+
+    logger.info(f'Vote results for {vote_id}:')
+    results = await db().get_results(vote_id)
 
     return web.json_response(data={
         "status": "success",
-        "message": f"Vote result: {result}",
+        "message": f"Vote results fetched",
+        "results": results.json()
     })
 
 
 async def handle_vote(request):
     token = request.query.get('token')
     vote = request.query.get('vote')
+    vote_id = int(request.query.get('vote_id'))
 
-    if token not in tokens_2_shares:
+    user = await db().get_user_by_token(token)
+    if user is None:
         logger.warning(f'Invalid token {token} voting')
         return web.json_response(data={
             "status": "error",
             "message": "Invalid token",
         })
-    elif token in voted:
+    participated = await db().has_participated(user.email, vote_id)
+    if participated:
         logger.warning(f'Token {token} already voted')
         return web.json_response(data={
             "status": "error",
             "message": "Token already used",
         })
-    else:
-        voted.add(token)
-        if vote == 'yes':
-            result['total_yes'] += tokens_2_shares[token]
-        elif vote == 'no':
-            result['total_no'] += tokens_2_shares[token]
-        elif vote == 'pass':
-            result['total_abst'] += tokens_2_shares[token]
-        else:
-            logger.warning(f'Invalid vote {vote} from token {token}')
-            voted.remove(token)
-            return web.json_response(data={
-                "status": "error",
-                "message": "Wrong vote parameter",
-            })
+
+    await db().vote(token, vote, vote_id)
 
     return web.json_response(data={
         "status": "success",
@@ -83,14 +66,35 @@ async def handle_vote(request):
     })
 
 
+async def handle_login(request):
+    email = request.query.get('email')
+    password = request.query.get('password')
+
+    try:
+        token = await db().login(email, password)
+    except Exception as e:
+        logger.warning(e)
+        return web.json_response(data={
+            "status": "error",
+            "message": "Invalid login credentials",
+        })
+
+    return web.json_response(data={
+        "status": "success",
+        "message": "Login successful",
+        "token": token
+    })
+
+
 async def main():
+    state['db'] = DbRepository(await connect_db())
     app = web.Application()
-    app.router.add_get('/vote', handle_vote)
-    app.router.add_get('/reset', handle_reset)
+    app.router.add_get('/create', handle_create)
     app.router.add_get('/result', handle_result)
+    app.router.add_get('/vote', handle_vote)
+    app.router.add_get('/login', handle_login)
     return app
 
 
 if __name__ == '__main__':
-    assign_tokens()
     web.run_app(main(), port=9090)

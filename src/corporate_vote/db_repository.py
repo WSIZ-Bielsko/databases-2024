@@ -9,7 +9,7 @@ from asyncpg import Pool
 from dotenv import load_dotenv
 from loguru import logger
 
-from src.corporate_vote.model import User
+from src.corporate_vote.model import User, Results
 
 """
 preplexity.ai prompt
@@ -118,6 +118,49 @@ class DbRepository:
             )
             return result == "DELETE 1"
 
+    async def create_new_vote(self) -> Results:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                """
+                INSERT INTO results (yes_count, no_count, pass_count)
+                VALUES ($1, $2, $3)
+                RETURNING *
+                """,
+                0, 0, 0
+            )
+            return Results(**result) if result else None
+
+    async def get_results(self, vote_id: int) -> Results | None:
+        logger.info(f'Getting results of vote id={vote_id}')
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT * FROM results WHERE vote_id = $1",
+                vote_id
+            )
+            return Results(**result) if result else None
+
+    async def reset_results(self, vote_id: int):
+        logger.info(f'Resetting results of vote id={vote_id}')
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE results set yes_count=0, no_count=0, pass_count=0 where"
+                " vote_id = $1",
+                vote_id
+            )
+            await conn.execute("DELETE FROM participation where vote_id = $1", vote_id)
+
+    async def has_participated(self, email: str, vote_id: int) -> bool:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                """
+                SELECT EXISTS(
+                    SELECT 1 FROM participation WHERE email = $1 AND vote_id = $2
+                )
+                """,
+                email, vote_id
+            )
+            return result[0]
+
     # ----------- custom methods
 
     async def login(self, email: str, password: str) -> str | None:
@@ -128,7 +171,8 @@ class DbRepository:
         :return: token
         """
         async with self.pool.acquire() as conn:
-            async with conn.transaction():
+            async with conn.transaction(isolation='repeatable_read'):
+                # {'serializable', 'repeatable_read', 'read_uncommitted', 'read_committed'}
                 # Fetch user data
                 query = "SELECT * FROM users WHERE email = $1"
                 row = await conn.fetchrow(query, email)
@@ -166,6 +210,7 @@ class DbRepository:
                 return User(**row)
 
     async def vote(self, token: str, vote_type: str, vote_id: int):
+
         if vote_type not in ['yes', 'no', 'pass']:
             raise RuntimeError('Vote type must be "yes" or "no" or "pass"')
         await sleep(0.05)
@@ -180,31 +225,40 @@ class DbRepository:
 
         async with self.pool.acquire() as conn:
             async with conn.transaction(isolation='serializable'):
+                # {'serializable', 'repeatable_read', 'read_uncommitted', 'read_committed'}
+
                 logger.info(f'token {token} inside transaction')
-                query1 = 'SELECT * FROM users WHERE token = $1'
+                query_read_user = 'SELECT * FROM users WHERE token = $1'
 
-                query2 = ('SELECT COUNT(*) FROM participation '
-                          'WHERE vote_id = $1 and email = $2')
+                query_read_participation = ('SELECT COUNT(*) FROM participation '
+                                            'WHERE vote_id = $1 and email = $2')
 
-                query3 = (f'UPDATE results SET '
-                          f'{vote_type}_count = {vote_type}_count + $1 '
-                          f'where vote_id = $2')
+                query_update_results = (f'UPDATE results SET '
+                                        f'{vote_type}_count = {vote_type}_count + $1 '
+                                        f'where vote_id = $2')
 
-                query4 = 'INSERT INTO participation (vote_id, email) values ($1, $2)'
+                query_update_particiaption = 'INSERT INTO participation (vote_id, email) values ($1, $2)'
 
-                # -- let's do it
-                result = await conn.fetchrow(query1, token)
+                # 1 Read user
+                result = await conn.fetchrow(query_read_user, token)
+                if not result:
+                    raise RuntimeError('Invalid token')
                 user = User(**result)
 
-                participation_count = await conn.fetchval(query2, vote_id, user.email)
+                # 2 Read participation
+                participation_count = await conn.fetchval(query_read_participation, vote_id, user.email)
                 if participation_count > 0:
                     raise RuntimeError('User has already participated in the vote')
                 logger.info(f'Token {token} ready to vote')
-                await conn.execute(query3, user.shares, vote_id)
+
+                # 3 Update results
+                await conn.execute(query_update_results, user.shares, vote_id)
                 logger.info(f'Token {token} result updated')
 
-                await conn.execute(query4, vote_id, user.email)
+                # 4 Update participation
+                await conn.execute(query_update_particiaption, vote_id, user.email)
                 logger.info(f'Token {token} participation marked')
+
             logger.info('transaction finished')
 
     """
@@ -214,33 +268,41 @@ class DbRepository:
     """
 
 
-async def hack_vote(db: DbRepository, token: str):
+async def hack_vote(db: DbRepository, token: str, vote_id: int):
     await sleep(0.1)
-    await db.vote(token, 'no', 1)
+    await db.vote(token, 'no', vote_id)
 
 
 async def main():
     pool = await connect_db()
     db = DbRepository(pool)
+    # vote = await db.create_new_vote()
     # u = User(id=uuid4(), email='a@a.com', password='kadabra', token='---', shares=1,
     #          active=True)
     # await db.create_user(u)
 
     tkn = await db.login('a@a.com', 'kadabra')
 
-    print(tkn)
+    # u = await db.get_user_by_token(tkn)
+    # print(u)
+    # assert u.email == 'a@a.com'
 
-    u = await db.get_user_by_token(tkn)
-    print(u)
-    assert u.email == 'a@a.com'
+    await db.reset_results(vote_id=3)
 
-    tasks = []
-    for i in range(100):
-        tasks.append(create_task(hack_vote(db, tkn)))
+    try:
+        tasks = []
+        for i in range(40):
+            tasks.append(create_task(hack_vote(db, tkn, vote_id=3)))
 
-    await gather(*tasks)
+        await gather(*tasks)
+    except Exception as e:
+        logger.error(e)
 
-    # await db.vote(tkn, 'no', 1)
+    result = await db.get_results(vote_id=3)
+    logger.debug('Done: ' + str([r.done() for r in tasks]))
+    logger.debug('Cancelled: ' + str([r.cancelled() for r in tasks]))
+    logger.warning('Final results')
+    logger.warning(result)
 
     await pool.close()
 
