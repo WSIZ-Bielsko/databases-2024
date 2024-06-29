@@ -209,7 +209,7 @@ class DbRepository:
             else:
                 return User(**row)
 
-    async def vote(self, token: str, vote_type: str, vote_id: int):
+    async def vote(self, token: str, vote_type: str, vote_id: int, tx_identity=0):
 
         if vote_type not in ['yes', 'no', 'pass']:
             raise RuntimeError('Vote type must be "yes" or "no" or "pass"')
@@ -227,7 +227,7 @@ class DbRepository:
             async with conn.transaction(isolation='serializable'):
                 # {'serializable', 'repeatable_read', 'read_uncommitted', 'read_committed'}
 
-                logger.info(f'token {token} inside transaction')
+                logger.info(f'id {tx_identity} inside transaction')
                 query_read_user = 'SELECT * FROM users WHERE token = $1'
 
                 query_read_participation = ('SELECT COUNT(*) FROM participation '
@@ -249,17 +249,17 @@ class DbRepository:
                 participation_count = await conn.fetchval(query_read_participation, vote_id, user.email)
                 if participation_count > 0:
                     raise RuntimeError('User has already participated in the vote')
-                logger.info(f'Token {token} ready to vote')
+                logger.info(f'id {tx_identity} ready to vote')
 
                 # 3 Update results
                 await conn.execute(query_update_results, user.shares, vote_id)
-                logger.info(f'Token {token} result updated')
+                logger.info(f'id {tx_identity} result updated')
 
                 # 4 Update participation
                 await conn.execute(query_update_particiaption, vote_id, user.email)
-                logger.info(f'Token {token} participation marked')
+                logger.info(f'id {tx_identity} participation marked')
 
-            logger.info('transaction finished')
+            logger.info(f'id {tx_identity} transaction finished')
 
     """
     Challenges: 
@@ -268,9 +268,9 @@ class DbRepository:
     """
 
 
-async def hack_vote(db: DbRepository, token: str, vote_id: int):
+async def hack_vote(db: DbRepository, token: str, vote_id: int, tx_id: int = 0):
     await sleep(0.1)
-    await db.vote(token, 'no', vote_id)
+    await db.vote(token, 'no', vote_id, tx_id)
 
 
 async def main():
@@ -292,7 +292,7 @@ async def main():
     try:
         tasks = []
         for i in range(40):
-            tasks.append(create_task(hack_vote(db, tkn, vote_id=3)))
+            tasks.append(create_task(hack_vote(db, tkn, vote_id=3, tx_id=i)))
 
         await gather(*tasks)
     except Exception as e:
@@ -303,6 +303,7 @@ async def main():
     logger.debug('Cancelled: ' + str([r.cancelled() for r in tasks]))
     logger.warning('Final results')
     logger.warning(result)
+    await db.reset_results(vote_id=3)
 
     await pool.close()
 
