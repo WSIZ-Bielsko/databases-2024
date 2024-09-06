@@ -12,7 +12,6 @@ class Schedule(BaseModel):
     severity: int = 5  # in [0..10]  --> 0: weak, ... 2: medium... 10: critical
     period_days: int  # 0: will not be repeated
     critical_warning_days_before: int = 7
-    last_alert_id: UUID | None = None
 
 
 class Alert(BaseModel):

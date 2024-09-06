@@ -7,21 +7,22 @@ for the following pydantic data classes:
 
 class Schedule(BaseModel):
     id: UUID
-    name: str
-    severity: int  # 0: weak, ... 2: medium... 5: critical
+    active: bool = True
+    name: str  # unique on DB
+    description: str = ''
+    severity: int = 5  # in [0..10]  --> 0: weak, ... 2: medium... 10: critical
     period_days: int  # 0: will not be repeated
-    next_alert_date: date | None
-    action: str # 'log' or 'discord'
+    critical_warning_days_before: int = 7
 
 
 class Alert(BaseModel):
     id: UUID
     schedule_id: UUID
     message: str
-    severity: int
     alert_date: date
-    critical_warning_days_before: int
-    closed_at: date
+
+    closed_at: date | None
+    close_message: str | None
 
 Apart from the method corresponding to delete operation, all other ms should return
 instance or instances of the dataclass or None.
@@ -49,21 +50,41 @@ import asyncpg
 
 from src.alerter.model import Schedule, Alert
 
+from uuid import UUID
+from datetime import date
+from pydantic import BaseModel
+
+class Schedule(BaseModel):
+    id: UUID
+    active: bool = True
+    name: str
+    description: str = ''
+    severity: int = 5
+    period_days: int
+    critical_warning_days_before: int = 7
+
+class Alert(BaseModel):
+    id: UUID
+    schedule_id: UUID
+    message: str
+    alert_date: date
+    closed_at: date | None
+    close_message: str | None
 
 class EntityRepository:
-    def __init__(self, pool: asyncpg.Pool):
+    def __init__(self, pool):
         self.pool = pool
 
     async def create_schedule(self, schedule: Schedule) -> Schedule | None:
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(
                 """
-                INSERT INTO schedules (id, name, severity, period_days, next_alert_date, action)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO schedules (id, active, name, description, severity, period_days, critical_warning_days_before)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING *
                 """,
-                schedule.id, schedule.name, schedule.severity, schedule.period_days,
-                schedule.next_alert_date, schedule.action
+                schedule.id, schedule.active, schedule.name, schedule.description,
+                schedule.severity, schedule.period_days, schedule.critical_warning_days_before
             )
             return Schedule(**result) if result else None
 
@@ -82,12 +103,12 @@ class EntityRepository:
             result = await conn.fetchrow(
                 """
                 UPDATE schedules
-                SET name = $2, severity = $3, period_days = $4, next_alert_date = $5, action = $6
+                SET active = $2, name = $3, description = $4, severity = $5, period_days = $6, critical_warning_days_before = $7
                 WHERE id = $1
                 RETURNING *
                 """,
-                schedule.id, schedule.name, schedule.severity, schedule.period_days,
-                schedule.next_alert_date, schedule.action
+                schedule.id, schedule.active, schedule.name, schedule.description,
+                schedule.severity, schedule.period_days, schedule.critical_warning_days_before
             )
             return Schedule(**result) if result else None
 
@@ -99,12 +120,12 @@ class EntityRepository:
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(
                 """
-                INSERT INTO alerts (id, schedule_id, message, severity, alert_date, critical_warning_days_before, closed_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO alerts (id, schedule_id, message, alert_date, closed_at, close_message)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 """,
-                alert.id, alert.schedule_id, alert.message, alert.severity,
-                alert.alert_date, alert.critical_warning_days_before, alert.closed_at
+                alert.id, alert.schedule_id, alert.message, alert.alert_date,
+                alert.closed_at, alert.close_message
             )
             return Alert(**result) if result else None
 
@@ -123,12 +144,12 @@ class EntityRepository:
             result = await conn.fetchrow(
                 """
                 UPDATE alerts
-                SET schedule_id = $2, message = $3, severity = $4, alert_date = $5, critical_warning_days_before = $6, closed_at = $7
+                SET schedule_id = $2, message = $3, alert_date = $4, closed_at = $5, close_message = $6
                 WHERE id = $1
                 RETURNING *
                 """,
-                alert.id, alert.schedule_id, alert.message, alert.severity,
-                alert.alert_date, alert.critical_warning_days_before, alert.closed_at
+                alert.id, alert.schedule_id, alert.message, alert.alert_date,
+                alert.closed_at, alert.close_message
             )
             return Alert(**result) if result else None
 
