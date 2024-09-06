@@ -223,43 +223,47 @@ class DbRepository:
 
         # todo: add parameter "request_id"; catch asyncpg.exceptions.SerializationError
 
-        async with self.pool.acquire() as conn:
-            async with conn.transaction(isolation='serializable'):
-                # {'serializable', 'repeatable_read', 'read_uncommitted', 'read_committed'}
+        try:
+            async with self.pool.acquire() as conn:
+                async with conn.transaction(isolation='read_committed'):
+                    # {'serializable', 'repeatable_read', 'read_uncommitted', 'read_committed'}
 
-                logger.info(f'id {tx_identity} inside transaction')
-                query_read_user = 'SELECT * FROM users WHERE token = $1'
+                    logger.info(f'id {tx_identity} inside transaction')
+                    query_read_user = 'SELECT * FROM users WHERE token = $1'
 
-                query_read_participation = ('SELECT COUNT(*) FROM participation '
-                                            'WHERE vote_id = $1 and email = $2')
+                    query_read_participation = ('SELECT COUNT(*) FROM participation '
+                                                'WHERE vote_id = $1 and email = $2')
 
-                query_update_results = (f'UPDATE results SET '
-                                        f'{vote_type}_count = {vote_type}_count + $1 '
-                                        f'where vote_id = $2')
+                    query_update_results = (f'UPDATE results SET '
+                                            f'{vote_type}_count = {vote_type}_count + $1 '
+                                            f'where vote_id = $2')
 
-                query_update_particiaption = 'INSERT INTO participation (vote_id, email) values ($1, $2)'
+                    query_update_particiaption = 'INSERT INTO participation (vote_id, email) values ($1, $2)'
 
-                # 1 Read user
-                result = await conn.fetchrow(query_read_user, token)
-                if not result:
-                    raise RuntimeError('Invalid token')
-                user = User(**result)
+                    # 1 Read user
+                    result = await conn.fetchrow(query_read_user, token)
+                    if not result:
+                        raise RuntimeError('Invalid token')
+                    user = User(**result)
 
-                # 2 Read participation
-                participation_count = await conn.fetchval(query_read_participation, vote_id, user.email)
-                if participation_count > 0:
-                    raise RuntimeError('User has already participated in the vote')
-                logger.info(f'id {tx_identity} ready to vote')
+                    # 2 Read participation
+                    participation_count = await conn.fetchval(query_read_participation, vote_id, user.email)
+                    if participation_count > 0:
+                        raise RuntimeError('User has already participated in the vote')
+                    logger.info(f'id {tx_identity} ready to vote')
 
-                # 3 Update results
-                await conn.execute(query_update_results, user.shares, vote_id)
-                logger.info(f'id {tx_identity} result updated')
+                    # 3 Update results
+                    await conn.execute(query_update_results, user.shares, vote_id)
+                    logger.info(f'id {tx_identity} result updated')
 
-                # 4 Update participation
-                await conn.execute(query_update_particiaption, vote_id, user.email)
-                logger.info(f'id {tx_identity} participation marked')
+                    # 4 Update participation
+                    await conn.execute(query_update_particiaption, vote_id, user.email)
+                    logger.info(f'id {tx_identity} participation marked')
 
-            logger.info(f'id {tx_identity} transaction finished')
+                logger.info(f'id {tx_identity} transaction finished')
+
+        except Exception as e:
+            logger.warning(f'tx_id: {tx_identity}, error: {e}')
 
     """
     Challenges: 
@@ -273,6 +277,46 @@ async def hack_vote(db: DbRepository, token: str, vote_id: int, tx_id: int = 0):
     await db.vote(token, 'no', vote_id, tx_id)
 
 
+async def hacking(db: DbRepository, tkn: str, vote_id: int):
+    await db.reset_results(vote_id=vote_id)
+
+    try:
+        tasks = []
+        for i in range(40):
+            tasks.append(create_task(hack_vote(db, tkn, vote_id=vote_id, tx_id=i)))
+
+        await gather(*tasks)
+    except Exception as e:
+        logger.error(e)
+
+    result = await db.get_results(vote_id=vote_id)
+    # logger.debug('Done: ' + str([r.done() for r in tasks]))
+    # logger.debug('Cancelled: ' + str([r.cancelled() for r in tasks]))
+    logger.warning('result:' + str(result))
+    await db.reset_results(vote_id=vote_id)
+
+
+async def mass_user_vote_allowed(db: DbRepository, vote_id):
+    await db.reset_results(vote_id=vote_id)
+
+    tasks = []
+    tokens = ['',]
+
+    for i in range(1, 11):
+        tokens.append(await db.login(f'user{i}@a.com', f'pass{i}'))
+    logger.info('All users logged in successfully')
+
+    for i in range(1, 11):
+        tasks.append(create_task(db.vote(tokens[i], 'yes', vote_id, tx_identity=i)))
+
+    await gather(*tasks)
+    logger.info('All voting complete')
+    results = await db.get_results(vote_id=vote_id)
+    logger.warning('results: ' + str(results))
+    await db.reset_results(vote_id=vote_id)
+
+
+
 async def main():
     pool = await connect_db()
     db = DbRepository(pool)
@@ -283,27 +327,10 @@ async def main():
 
     tkn = await db.login('a@a.com', 'kadabra')
 
-    # u = await db.get_user_by_token(tkn)
-    # print(u)
-    # assert u.email == 'a@a.com'
+    await hacking(db, tkn, vote_id=1)
+    # await mass_user_vote_allowed(db, vote_id=1)
 
-    await db.reset_results(vote_id=3)
 
-    try:
-        tasks = []
-        for i in range(40):
-            tasks.append(create_task(hack_vote(db, tkn, vote_id=3, tx_id=i)))
-
-        await gather(*tasks)
-    except Exception as e:
-        logger.error(e)
-
-    result = await db.get_results(vote_id=3)
-    logger.debug('Done: ' + str([r.done() for r in tasks]))
-    logger.debug('Cancelled: ' + str([r.cancelled() for r in tasks]))
-    logger.warning('Final results')
-    logger.warning(result)
-    await db.reset_results(vote_id=3)
 
     await pool.close()
 
