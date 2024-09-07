@@ -47,6 +47,7 @@ The methods should have a suffix equal to the dataclass name.
 import asyncio
 import os
 from asyncio import run
+from datetime import date, timedelta
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -156,12 +157,15 @@ class EntityRepository:
 
 
 async def main():
-    pool = asyncio.run(connect_db())
+    pool = await connect_db()
     db = EntityRepository(pool)
     s = Schedule(id=uuid4(), name='podatek VAT do US', description='Works well when paid on time', period_days=30)
-    print(s.id)
+    logger.info(f'saving {s} to db')
     await db.create_schedule(s)
-
+    logger.info('schedule saved')
+    a = Alert(id=uuid4(), schedule_id=s.id, message="podatek do zapłaty",
+              alert_date=date.today() + timedelta(days=s.period_days), closed_at=None, close_message=None)
+    await db.create_alert(a)
 
 
 
