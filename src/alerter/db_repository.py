@@ -155,6 +155,13 @@ class EntityRepository:
         async with self.pool.acquire() as conn:
             await conn.execute("DELETE FROM alerts WHERE id = $1", alert_id)
 
+    # ------------------ custom methods -----------------
+
+    async def get_last_alert(self, schedule_id: UUID) -> Alert | None:
+        pass
+
+
+
 
 async def main():
     pool = await connect_db()

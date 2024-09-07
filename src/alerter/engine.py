@@ -33,15 +33,17 @@ class AlerterEngine:
         # for each such schedule
         #   check if get_last_alert for this schedule returns
         #       None, or last is already closed --> create new alert for this schedule
-        #       else: do noting
+        #       else: do nothing
 
 
     async def notify_on_alerts(self):
         logger.info('Acting on alerts')
-        # pull all alerts
+        # pull all non-closed alerts
         # if they are close to alert_date:
         #   if severity <= 5 --> write a "warning" log to console
         #   else --> send alert message to discord (for now implement as if this were to console with extra WARNING in message
+
+
 
 
 
