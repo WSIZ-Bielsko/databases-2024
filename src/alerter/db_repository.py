@@ -1,5 +1,3 @@
-
-
 """
 Write a class EntityRepository with methods for CRUD operations using asyncpg
 for the following pydantic data classes:
@@ -54,6 +52,7 @@ import asyncpg
 from asyncpg import Pool
 from dotenv import load_dotenv
 from loguru import logger
+from pydantic import with_config
 
 from src.alerter.model import Schedule, Alert
 
@@ -157,10 +156,23 @@ class EntityRepository:
 
     # ------------------ custom methods -----------------
 
+    async def list_active_schedules(self) -> list[Schedule]:
+        query = 'select * from schedules where active = true'
+        async with self.pool.acquire() as conn:
+            results = await conn.fetchrow(query)
+            return [Schedule(**result) for result in results]
+
+    async def list_nonclosed_alerts(self) -> list[Alert]:
+        query = 'select * from alerts where closed_at is null'
+        async with self.pool.acquire() as conn:
+            results = await conn.fetch(query)
+            return [Alert(**r) for r in results]
+
     async def get_last_alert(self, schedule_id: UUID) -> Alert | None:
-        pass
-
-
+        query = 'select * from alerts where schedule_id = $1 and closed_at is null order by alert_date limit 1'
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(query, schedule_id)
+            return Alert(**result) if result else None
 
 
 async def main():
@@ -173,7 +185,6 @@ async def main():
     a = Alert(id=uuid4(), schedule_id=s.id, message="podatek do zapłaty",
               alert_date=date.today() + timedelta(days=s.period_days), closed_at=None, close_message=None)
     await db.create_alert(a)
-
 
 
 if __name__ == '__main__':
