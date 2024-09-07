@@ -44,32 +44,29 @@ Use plural for table name in sql.
 The methods should have a suffix equal to the dataclass name.
 
 """
-from uuid import UUID
+import asyncio
+import os
+from asyncio import run
+from uuid import UUID, uuid4
 
 import asyncpg
+from asyncpg import Pool
+from dotenv import load_dotenv
+from loguru import logger
 
 from src.alerter.model import Schedule, Alert
 
-from uuid import UUID
-from datetime import date
-from pydantic import BaseModel
 
-class Schedule(BaseModel):
-    id: UUID
-    active: bool = True
-    name: str
-    description: str = ''
-    severity: int = 5
-    period_days: int
-    critical_warning_days_before: int = 7
+async def connect_db() -> Pool:
+    load_dotenv()
+    logger.info("Loading env variables")
+    url = os.getenv("DB_URL", None)
 
-class Alert(BaseModel):
-    id: UUID
-    schedule_id: UUID
-    message: str
-    alert_date: date
-    closed_at: date | None
-    close_message: str | None
+    pool = await asyncpg.create_pool(
+        url, min_size=5, max_size=10, timeout=30, command_timeout=5
+    )
+    return pool
+
 
 class EntityRepository:
     def __init__(self, pool):
@@ -156,3 +153,17 @@ class EntityRepository:
     async def delete_alert(self, alert_id: UUID) -> None:
         async with self.pool.acquire() as conn:
             await conn.execute("DELETE FROM alerts WHERE id = $1", alert_id)
+
+
+async def main():
+    pool = asyncio.run(connect_db())
+    db = EntityRepository(pool)
+    s = Schedule(id=uuid4(), name='podatek VAT do US', description='Works well when paid on time', period_days=30)
+    print(s.id)
+    await db.create_schedule(s)
+
+
+
+
+if __name__ == '__main__':
+    run(main())
