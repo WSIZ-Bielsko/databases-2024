@@ -59,12 +59,13 @@ from src.alerter.model import Schedule, Alert
 
 async def connect_db() -> Pool:
     load_dotenv()
-    logger.info("Loading env variables")
+    logger.info("loading DB_URL from envvars")
     url = os.getenv("DB_URL", None)
 
     pool = await asyncpg.create_pool(
         url, min_size=5, max_size=10, timeout=30, command_timeout=5
     )
+    logger.info('db connected')
     return pool
 
 
@@ -159,7 +160,7 @@ class EntityRepository:
     async def list_active_schedules(self) -> list[Schedule]:
         query = 'select * from schedules where active = true'
         async with self.pool.acquire() as conn:
-            results = await conn.fetchrow(query)
+            results = await conn.fetch(query)
             return [Schedule(**result) for result in results]
 
     async def list_nonclosed_alerts(self) -> list[Alert]:
