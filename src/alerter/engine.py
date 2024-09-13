@@ -14,6 +14,9 @@ from src.alerter.db_repository import EntityRepository, connect_db
 from src.alerter.discord_tools import DiscordNotifier
 from src.alerter.model import Alert, Schedule
 
+from croniter import croniter
+from datetime import datetime
+
 
 class EngineConfig(BaseModel):
     check_schedule_hours: int = 1
@@ -38,6 +41,13 @@ class AlerterEngine:
             logger.info(f'sleeping for {next_action / 3600} hours')
             await asyncio.sleep(self.config.check_schedule_hours * 3600)
 
+    def get_next_cron_timestamp(cron_expression, start_time=None):
+        if start_time is None:
+            start_time = datetime.now()
+            cron = croniter(cron_expression, start_time)
+            next_timestamp = cron.get_next(datetime)
+            return next_timestamp
+
     async def schedule_alerts(self):
         """
         Ensure (next) alert objects are present for all active schedules
@@ -49,14 +59,23 @@ class AlerterEngine:
         for s in schedules:
             last_alert = await self.db.get_last_alert(s.id)
             if last_alert is None:
-                due = today() + timedelta(days=s.period_days)
-                new_alert = Alert(id=uuid4(), schedule_id=s.id,
-                                  message=f'alert: {s.name}, due: {due.date()}',
-                                  alert_date=due,
-                                  closed_at=None,
-                                  close_message=None)
-                logger.info('creating new alert ' + str(new_alert))
-                await self.db.create_alert(new_alert)
+                due = None
+                if s.period_days is not None:
+                    due = today() + timedelta(days=s.period_days)
+                elif s.cron_expression is not None:
+                    due = self.get_next_cron_timestamp(s.cron_expression)
+
+                if due is not None:
+                    new_alert = Alert(
+                        id=uuid4(),
+                        schedule_id=s.id,
+                        message=f"alert: {s.name}, due: {due.date()}",
+                        alert_date=due,
+                        closed_at=None,
+                        close_message=None,
+                    )
+                    logger.info("creating new alert " + str(new_alert))
+                    await self.db.create_alert(new_alert)
 
     async def notify_on_alerts(self):
         """

@@ -25,8 +25,16 @@ CREATE TABLE schedules (
     active BOOLEAN DEFAULT TRUE,
     name TEXT UNIQUE NOT NULL,
     description TEXT DEFAULT '',
-    severity INTEGER DEFAULT 5 CHECK (severity >= 0 AND severity <= 10),
-    period_days INTEGER NOT NULL,
+    severity INTEGER DEFAULT 5 CHECK (
+        severity >= 0
+        AND severity <= 10
+    ),
+    period_days INTEGER DEFAULT NULL,
+    cron_expression VARCHAR(255) DEFAULT NULL,
+    CHECK (
+        period_days IS NOT NULL
+        OR cron_expression IS NOT NULL
+    ),
     critical_warning_days_before INTEGER DEFAULT 7
 );
 
