@@ -10,7 +10,8 @@ class Schedule(BaseModel):
     name: str  # unique on DB
     description: str = ''
     severity: int = 5  # in [0..10]  --> 0: weak, ... 2: medium... 10: critical
-    period_days: int  # 0: will not be repeated
+    period_days: int | None  # 0: will not be repeated
+    cron_expression: str | None = None
     critical_warning_days_before: int = 7
 
 

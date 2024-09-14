@@ -13,7 +13,7 @@ from pydantic.v1 import UUID1
 from src.alerter.db_repository import EntityRepository, connect_db
 from src.alerter.discord_tools import DiscordNotifier
 from src.alerter.model import Alert, Schedule
-
+from cron_tools import get_next_cron_timestamp
 
 class EngineConfig(BaseModel):
     check_schedule_hours: int = 1
@@ -49,10 +49,14 @@ class AlerterEngine:
         for s in schedules:
             last_alert = await self.db.get_last_alert(s.id)
             if last_alert is None:
-                due = today() + timedelta(days=s.period_days)
+                if s.cron_expression is not None:
+                    due = get_next_cron_timestamp(s.cron_expression, datetime.now())
+                else:
+                    due = today() + timedelta(days=s.period_days)
+
                 new_alert = Alert(id=uuid4(), schedule_id=s.id,
                                   message=f'alert: {s.name}, due: {due.date()}',
-                                  alert_date=due,
+                                  alert_date=due.date(),
                                   closed_at=None,
                                   close_message=None)
                 logger.info('creating new alert ' + str(new_alert))
@@ -61,6 +65,7 @@ class AlerterEngine:
     async def notify_on_alerts(self):
         """
         Execute actions for all alert objects which are not far from alert_date
+
         """
         if (self.last_alert_time is None or
                 datetime.now() - self.last_alert_time > self.config.repeat_alert_hours * 3600):

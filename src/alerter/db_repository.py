@@ -3,6 +3,7 @@ Write a class EntityRepository with methods for CRUD operations using asyncpg
 for the following pydantic data classes:
 
 
+
 class Schedule(BaseModel):
     id: UUID
     active: bool = True
@@ -10,7 +11,9 @@ class Schedule(BaseModel):
     description: str = ''
     severity: int = 5  # in [0..10]  --> 0: weak, ... 2: medium... 10: critical
     period_days: int  # 0: will not be repeated
+    cron_expression: str | None = None
     critical_warning_days_before: int = 7
+
 
 
 class Alert(BaseModel):
@@ -75,15 +78,13 @@ class EntityRepository:
 
     async def create_schedule(self, schedule: Schedule) -> Schedule | None:
         async with self.pool.acquire() as conn:
-            result = await conn.fetchrow(
-                """
-                INSERT INTO schedules (id, active, name, description, severity, period_days, critical_warning_days_before)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING *
-                """,
-                schedule.id, schedule.active, schedule.name, schedule.description,
-                schedule.severity, schedule.period_days, schedule.critical_warning_days_before
-            )
+            result = await conn.fetchrow("""
+                 INSERT INTO schedules (id, active, name, description, severity, period_days, cron_expression, critical_warning_days_before)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING *
+             """, schedule.id, schedule.active, schedule.name, schedule.description, schedule.severity,
+                                         schedule.period_days, schedule.cron_expression,
+                                         schedule.critical_warning_days_before)
             return Schedule(**result) if result else None
 
     async def get_schedule(self, schedule_id: UUID) -> Schedule | None:
@@ -98,33 +99,29 @@ class EntityRepository:
 
     async def update_schedule(self, schedule: Schedule) -> Schedule | None:
         async with self.pool.acquire() as conn:
-            result = await conn.fetchrow(
-                """
-                UPDATE schedules
-                SET active = $2, name = $3, description = $4, severity = $5, period_days = $6, critical_warning_days_before = $7
-                WHERE id = $1
-                RETURNING *
-                """,
-                schedule.id, schedule.active, schedule.name, schedule.description,
-                schedule.severity, schedule.period_days, schedule.critical_warning_days_before
-            )
+            result = await conn.fetchrow("""
+                 UPDATE schedules
+                 SET active = $2, name = $3, description = $4, severity = $5,
+                     period_days = $6, cron_expression = $7, critical_warning_days_before = $8
+                 WHERE id = $1
+                 RETURNING *
+             """, schedule.id, schedule.active, schedule.name, schedule.description, schedule.severity,
+                                         schedule.period_days, schedule.cron_expression,
+                                         schedule.critical_warning_days_before)
             return Schedule(**result) if result else None
 
-    async def delete_schedule(self, schedule_id: UUID) -> None:
+    async def delete_schedule(self, schedule_id: UUID) -> bool:
         async with self.pool.acquire() as conn:
-            await conn.execute("DELETE FROM schedules WHERE id = $1", schedule_id)
+            result = await conn.execute("DELETE FROM schedules WHERE id = $1", schedule_id)
+            return result == "DELETE 1"
 
     async def create_alert(self, alert: Alert) -> Alert | None:
         async with self.pool.acquire() as conn:
-            result = await conn.fetchrow(
-                """
-                INSERT INTO alerts (id, schedule_id, message, alert_date, closed_at, close_message)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                RETURNING *
-                """,
-                alert.id, alert.schedule_id, alert.message, alert.alert_date,
-                alert.closed_at, alert.close_message
-            )
+            result = await conn.fetchrow("""
+                 INSERT INTO alerts (id, schedule_id, message, alert_date, closed_at, close_message)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 RETURNING *
+             """, alert.id, alert.schedule_id, alert.message, alert.alert_date, alert.closed_at, alert.close_message)
             return Alert(**result) if result else None
 
     async def get_alert(self, alert_id: UUID) -> Alert | None:
@@ -139,22 +136,18 @@ class EntityRepository:
 
     async def update_alert(self, alert: Alert) -> Alert | None:
         async with self.pool.acquire() as conn:
-            result = await conn.fetchrow(
-                """
-                UPDATE alerts
-                SET schedule_id = $2, message = $3, alert_date = $4, closed_at = $5, close_message = $6
-                WHERE id = $1
-                RETURNING *
-                """,
-                alert.id, alert.schedule_id, alert.message, alert.alert_date,
-                alert.closed_at, alert.close_message
-            )
+            result = await conn.fetchrow("""
+                 UPDATE alerts
+                 SET schedule_id = $2, message = $3, alert_date = $4, closed_at = $5, close_message = $6
+                 WHERE id = $1
+                 RETURNING *
+             """, alert.id, alert.schedule_id, alert.message, alert.alert_date, alert.closed_at, alert.close_message)
             return Alert(**result) if result else None
 
-    async def delete_alert(self, alert_id: UUID) -> None:
+    async def delete_alert(self, alert_id: UUID) -> bool:
         async with self.pool.acquire() as conn:
-            await conn.execute("DELETE FROM alerts WHERE id = $1", alert_id)
-
+            result = await conn.execute("DELETE FROM alerts WHERE id = $1", alert_id)
+            return result == "DELETE 1"
     # ------------------ custom methods -----------------
 
     async def list_active_schedules(self) -> list[Schedule]:
@@ -170,6 +163,9 @@ class EntityRepository:
             return [Alert(**r) for r in results]
 
     async def get_last_alert(self, schedule_id: UUID) -> Alert | None:
+        """
+        returns: earliest non-closed alert with given schedule_id, or None where no such alert exists
+        """
         query = 'select * from alerts where schedule_id = $1 and closed_at is null order by alert_date limit 1'
         async with self.pool.acquire() as conn:
             result = await conn.fetchrow(query, schedule_id)
